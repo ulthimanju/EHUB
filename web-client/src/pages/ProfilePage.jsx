@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import OTPInput from '../components/ui/OTPInput';
 import { useLoading } from '../contexts/LoadingContext';
 import AuthService from '../services/AuthService';
 
@@ -22,7 +23,7 @@ const ProfilePage = () => {
 
     // OTP State
     const [showOtpModal, setShowOtpModal] = useState(false);
-    const [otp, setOtp] = useState('');
+    const [otp, setOtp] = useState([]);
     const [successMessage, setSuccessMessage] = useState('');
 
     useEffect(() => {
@@ -131,18 +132,19 @@ const ProfilePage = () => {
     };
 
     const handleSubmitOtp = async () => {
-        if (!otp) {
-            setError('Please enter OTP');
+        const otpString = otp.join('');
+        if (otpString.length !== 6) {
+            setError('Please enter complete 6-digit OTP');
             return;
         }
         showLoading('Verifying OTP...');
         setError('');
         try {
-            const updatedUser = await AuthService.promoteToOrganizer(user.id, otp);
+            const updatedUser = await AuthService.promoteToOrganizer(user.id, otpString);
             setUser({ ...user, ...updatedUser });
             setShowOtpModal(false);
             setSuccessMessage('You are now an Organizer!');
-            setOtp('');
+            setOtp([]);
         } catch (err) {
             setError(err.message || 'Invalid OTP or failed to promote');
         } finally {
@@ -155,167 +157,195 @@ const ProfilePage = () => {
     }
 
     return (
-        <div className="flex-1 flex items-center justify-center p-4">
-            <Card className="w-full max-w-lg p-8 m-auto relative">
-                {/* OTP Modal Overlay - simple implementation inline */}
-                {showOtpModal && (
-                    <div className="absolute inset-0 bg-white/90 z-10 flex flex-col items-center justify-center p-8 rounded-2xl animate-in fade-in">
-                        <h3 className="text-xl font-heading font-bold text-gray-900 mb-4">Enter OTP</h3>
-                        <p className="text-sm text-gray-500 mb-6 text-center">We sent a code to your email to verify your request.</p>
-
-                        <div className="w-full max-w-xs space-y-4">
-                            <Input
-                                placeholder="Enter 6-digit OTP"
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value)}
-                                className="text-center text-lg tracking-widest"
-                            />
-                            <div className="flex gap-3">
-                                <Button className="flex-1" onClick={handleSubmitOtp}>Verify</Button>
-                                <Button variant="outline" className="flex-1" onClick={() => { setShowOtpModal(false); setOtp(''); setError(''); }}>Cancel</Button>
+        <>
+            {/* OTP Modal - Full Screen Overlay */}
+            {showOtpModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <Card className="w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                                <UserPlus className="w-8 h-8 text-orange-600" />
                             </div>
+                            <h3 className="text-2xl font-heading font-bold text-gray-900 mb-2">Verify Your Identity</h3>
+                            <p className="text-sm text-gray-500">
+                                Enter the 6-digit code sent to<br />
+                                <span className="font-semibold text-orange-600">{user.email}</span>
+                            </p>
                         </div>
-                    </div>
-                )}
 
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-heading font-bold text-gray-900 flex items-center justify-center">
-                        <Hash className="w-6 h-6 text-orange-500" />
-                        {user.username}
-                        {user.role === 'ORGANIZER' && <span className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-600 text-xs rounded-full border border-orange-200">Organizer</span>}
-                    </h1>
-                </div>
+                        {error && (
+                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm font-body text-center">
+                                {error}
+                            </div>
+                        )}
 
-                {error && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm font-body">
-                        {error}
-                    </div>
-                )}
+                        <div className="mb-8">
+                            <OTPInput length={6} value={otp} onChange={setOtp} />
+                        </div>
 
-                {successMessage && (
-                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm font-body">
-                        {successMessage}
-                    </div>
-                )}
-
-                {isEditing ? (
-                    <div className="space-y-4 mb-6">
-                        <Input
-                            label="First Name"
-                            name="firstName"
-                            placeholder="John"
-                            icon={UserCircle}
-                            value={formData.firstName}
-                            onChange={handleChange}
-                        />
-                        <Input
-                            label="Last Name"
-                            name="lastName"
-                            placeholder="Doe"
-                            icon={UserCircle}
-                            value={formData.lastName}
-                            onChange={handleChange}
-                        />
-                        <Input
-                            label="Phone Number"
-                            name="phoneNumber"
-                            placeholder="+1 234 567 8900"
-                            icon={Phone}
-                            value={formData.phoneNumber}
-                            onChange={handleChange}
-                        />
-                        <Input
-                            label="Address"
-                            name="address"
-                            placeholder="123 Main St, City, Country"
-                            icon={MapPin}
-                            value={formData.address}
-                            onChange={handleChange}
-                        />
-
-                        <div className="flex gap-3 pt-2">
-                            <Button
-                                className="flex-1 flex items-center justify-center gap-2"
-                                onClick={handleSave}
-                            >
-                                <Save className="w-4 h-4" />
-                                Save Changes
+                        <div className="flex gap-3">
+                            <Button className="flex-1 py-3" onClick={handleSubmitOtp}>
+                                Verify & Continue
                             </Button>
                             <Button
                                 variant="outline"
-                                className="flex-1 flex items-center justify-center gap-2"
-                                onClick={handleCancel}
+                                className="flex-1 py-3"
+                                onClick={() => { setShowOtpModal(false); setOtp([]); setError(''); }}
                             >
-                                <X className="w-4 h-4" />
                                 Cancel
                             </Button>
                         </div>
+
+                        <p className="text-xs text-gray-400 text-center mt-6">
+                            Didn't receive the code? Check your spam folder.
+                        </p>
+                    </Card>
+                </div>
+            )}
+
+            <div className="flex-1 flex items-center justify-center p-4">
+                <Card className="w-full max-w-lg p-8 m-auto">
+
+                    <div className="text-center mb-8">
+                        <h1 className="text-2xl font-heading font-bold text-gray-900 flex items-center justify-center">
+                            <Hash className="w-6 h-6 text-orange-500" />
+                            {user.username}
+                            {user.role === 'ORGANIZER' && <span className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-600 text-xs rounded-full border border-orange-200">Organizer</span>}
+                        </h1>
                     </div>
-                ) : (
-                    <>
-                        <div className="space-y-3 mb-6">
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
-                                <div className="flex items-center gap-3">
-                                    <Mail className="w-5 h-5 text-orange-500" />
-                                    <span className="text-sm font-body text-gray-600">Email</span>
-                                </div>
-                                <span className="text-sm font-semibold font-body text-gray-900">{user.email || 'Not set'}</span>
-                            </div>
 
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
-                                <div className="flex items-center gap-3">
-                                    <UserCircle className="w-5 h-5 text-orange-500" />
-                                    <span className="text-sm font-body text-gray-600">Name</span>
-                                </div>
-                                <span className="text-sm font-semibold font-body text-gray-900">
-                                    {user.firstName && user.lastName
-                                        ? `${user.firstName} ${user.lastName}`
-                                        : user.firstName || user.lastName || 'Not set'}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
-                                <div className="flex items-center gap-3">
-                                    <Phone className="w-5 h-5 text-orange-500" />
-                                    <span className="text-sm font-body text-gray-600">Phone</span>
-                                </div>
-                                <span className="text-sm font-semibold font-body text-gray-900">{user.phoneNumber || 'Not set'}</span>
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
-                                <div className="flex items-center gap-3">
-                                    <MapPin className="w-5 h-5 text-orange-500" />
-                                    <span className="text-sm font-body text-gray-600">Address</span>
-                                </div>
-                                <span className="text-sm font-semibold font-body text-gray-900 text-right max-w-[200px] truncate">{user.address || 'Not set'}</span>
-                            </div>
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm font-body">
+                            {error}
                         </div>
+                    )}
 
-                        <div className="flex gap-4">
-                            <Button
-                                variant="outline"
-                                className="flex-1 flex items-center justify-center gap-2"
-                                onClick={() => setIsEditing(true)}
-                            >
-                                <Edit className="w-4 h-4" />
-                                Edit Profile
-                            </Button>
-                            {user.role !== 'ORGANIZER' && (
+                    {successMessage && (
+                        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm font-body">
+                            {successMessage}
+                        </div>
+                    )}
+
+                    {isEditing ? (
+                        <div className="space-y-4 mb-6">
+                            <Input
+                                label="First Name"
+                                name="firstName"
+                                placeholder="John"
+                                icon={UserCircle}
+                                value={formData.firstName}
+                                onChange={handleChange}
+                            />
+                            <Input
+                                label="Last Name"
+                                name="lastName"
+                                placeholder="Doe"
+                                icon={UserCircle}
+                                value={formData.lastName}
+                                onChange={handleChange}
+                            />
+                            <Input
+                                label="Phone Number"
+                                name="phoneNumber"
+                                placeholder="+1 234 567 8900"
+                                icon={Phone}
+                                value={formData.phoneNumber}
+                                onChange={handleChange}
+                            />
+                            <Input
+                                label="Address"
+                                name="address"
+                                placeholder="123 Main St, City, Country"
+                                icon={MapPin}
+                                value={formData.address}
+                                onChange={handleChange}
+                            />
+
+                            <div className="flex gap-3 pt-2">
                                 <Button
-                                    variant="primary"
                                     className="flex-1 flex items-center justify-center gap-2"
-                                    onClick={handleBecomeOrganizer}
+                                    onClick={handleSave}
                                 >
-                                    <UserPlus className="w-4 h-4" />
-                                    Become Organizer
+                                    <Save className="w-4 h-4" />
+                                    Save Changes
                                 </Button>
-                            )}
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 flex items-center justify-center gap-2"
+                                    onClick={handleCancel}
+                                >
+                                    <X className="w-4 h-4" />
+                                    Cancel
+                                </Button>
+                            </div>
                         </div>
-                    </>
-                )}
-            </Card>
-        </div>
+                    ) : (
+                        <>
+                            <div className="space-y-3 mb-6">
+                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                    <div className="flex items-center gap-3">
+                                        <Mail className="w-5 h-5 text-orange-500" />
+                                        <span className="text-sm font-body text-gray-600">Email</span>
+                                    </div>
+                                    <span className="text-sm font-semibold font-body text-gray-900">{user.email || 'Not set'}</span>
+                                </div>
+
+                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                    <div className="flex items-center gap-3">
+                                        <UserCircle className="w-5 h-5 text-orange-500" />
+                                        <span className="text-sm font-body text-gray-600">Name</span>
+                                    </div>
+                                    <span className="text-sm font-semibold font-body text-gray-900">
+                                        {user.firstName && user.lastName
+                                            ? `${user.firstName} ${user.lastName}`
+                                            : user.firstName || user.lastName || 'Not set'}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                    <div className="flex items-center gap-3">
+                                        <Phone className="w-5 h-5 text-orange-500" />
+                                        <span className="text-sm font-body text-gray-600">Phone</span>
+                                    </div>
+                                    <span className="text-sm font-semibold font-body text-gray-900">{user.phoneNumber || 'Not set'}</span>
+                                </div>
+
+                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                    <div className="flex items-center gap-3">
+                                        <MapPin className="w-5 h-5 text-orange-500" />
+                                        <span className="text-sm font-body text-gray-600">Address</span>
+                                    </div>
+                                    <span className="text-sm font-semibold font-body text-gray-900 text-right max-w-[200px] truncate">{user.address || 'Not set'}</span>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 flex items-center justify-center gap-2"
+                                    onClick={() => setIsEditing(true)}
+                                >
+                                    <Edit className="w-4 h-4" />
+                                    Edit Profile
+                                </Button>
+                                {user.role !== 'ORGANIZER' && (
+                                    <Button
+                                        variant="primary"
+                                        className="flex-1 flex items-center justify-center gap-2"
+                                        onClick={handleBecomeOrganizer}
+                                    >
+                                        <UserPlus className="w-4 h-4" />
+                                        Become Organizer
+                                    </Button>
+                                )}
+                            </div>
+                        </>
+                    )}
+                </Card>
+            </div>
+        </>
     );
 };
 
 export default ProfilePage;
+
