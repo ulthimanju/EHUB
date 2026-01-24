@@ -66,4 +66,31 @@ public class KeycloakService {
 
         keycloak.realm(realm).users().get(user.getId()).resetPassword(credential);
     }
+
+    public void assignRole(String username, String roleName) {
+        // 1. Get user
+        List<UserRepresentation> users = keycloak.realm(realm).users().search(username);
+        if (users.isEmpty()) {
+            throw new RuntimeException("User not found in Keycloak: " + username);
+        }
+        UserRepresentation user = users.stream()
+                .filter(u -> u.getUsername().equals(username))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("User not found in Keycloak (exact match): " + username));
+
+        // 2. Get Role
+        org.keycloak.representations.idm.RoleRepresentation role = keycloak.realm(realm).roles().get(roleName)
+                .toRepresentation();
+        if (role == null) {
+            System.out.println("Role " + roleName + " not found, creating it.");
+            // Optional: Create role if not exists, but for now assuming it might fail or we
+            // should create it
+            // Let's rely on pre-configuration or handle error strictly.
+            // Ideally roles should be managed by config, but let's throw friendly error
+            throw new RuntimeException("Role not found in Keycloak: " + roleName);
+        }
+
+        // 3. Assign Role to User
+        keycloak.realm(realm).users().get(user.getId()).roles().realmLevel().add(List.of(role));
+    }
 }

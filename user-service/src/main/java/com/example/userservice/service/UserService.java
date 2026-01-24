@@ -27,10 +27,20 @@ public class UserService {
         // 1. Create user in Keycloak
         keycloakService.createUser(registrationDto);
 
+        // 1.5 Assign default role in Keycloak
+        // We should ensure the role exists in Keycloak or handle the error gracefully
+        // if not configured
+        try {
+            keycloakService.assignRole(registrationDto.getUsername(), "USER");
+        } catch (Exception e) {
+            System.err.println("Warning: Could not assign 'USER' role in Keycloak: " + e.getMessage());
+        }
+
         // 2. Create user in local DB
         User user = new User();
         user.setUsername(registrationDto.getUsername());
         user.setEmail(registrationDto.getEmail());
+        user.setRole("USER"); // Default role
         // Password is NOT saved locally
 
         User savedUser = userRepository.save(user);
@@ -64,6 +74,32 @@ public class UserService {
         return mapToDTO(savedUser);
     }
 
+    public UserDTO promoteToOrganizer(Long userId, String otp) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new com.example.common.exception.ResourceNotFoundException("User", "id", userId));
+
+        // 1. Verify OTP
+        // We can reuse verifyOtp method, but it expects email. Since we have user, we
+        // get email.
+        // verifyOtp will throw exception if invalid.
+        verifyOtp(user.getEmail(), otp);
+
+        // 2. Update local
+        user.setRole("ORGANIZER");
+        User savedUser = userRepository.save(user);
+
+        // 3. Update Keycloak
+        try {
+            keycloakService.assignRole(user.getUsername(), "ORGANIZER");
+        } catch (Exception e) {
+            System.err.println("Error assigning ORGANIZER role in Keycloak: " + e.getMessage());
+            // Decide if we want to rollback or just log. For now, log.
+            throw new RuntimeException("Failed to assign role in Keycloak: " + e.getMessage());
+        }
+
+        return mapToDTO(savedUser);
+    }
+
     public UserDTO syncUser(String username, String email, String firstName, String lastName) {
         return userRepository.findByUsername(username)
                 .map(this::mapToDTO)
@@ -73,6 +109,7 @@ public class UserService {
                     user.setEmail(email);
                     user.setFirstName(firstName);
                     user.setLastName(lastName);
+                    user.setRole("USER"); // Default for synced users
                     return mapToDTO(userRepository.save(user));
                 });
     }
@@ -127,21 +164,8 @@ public class UserService {
         }
 
         // OTP Verified.
-        // We do NOT clear it here if the next step (Reset Password) needs to verify it
-        // again or if we treat this as "session verified".
-        // However, standard flow is: Verify -> Get Token -> Reset.
-        // For this simple implementation where client state handles flow, we can clear
-        // it.
-        // BUT if the previous 500 was due to "Invalid OTP", let's see.
-        // If 500, it's an unhandled exception.
-        // Let's wrap in try-catch in controller or just ensure no null pointers here.
         System.out.println("OTP Verified successfully for " + email);
 
-        // Don't clear it yet, let's clear it in resetPassword to prevent replay
-        // attacks,
-        // OR clear it here and issuing a temporary reset token would be better but
-        // complex.
-        // For now, let's clear it here.
         user.setOtp(null);
         user.setOtpExpiry(null);
         userRepository.save(user);
@@ -156,11 +180,6 @@ public class UserService {
             request.put("body", body);
 
             // Using API Gateway URL (or internal Docker DNS if within same network)
-            // Accessing via API Gateway accessible from within docker network might need to
-            // be 'api-gateway' or specific service
-            // Here assuming internal communication:
-            // http://notification-service:8080/notifications/email
-            // If running composed, service name is 'notification-service'.
             String url = "http://notification-service:8080/notifications/email";
             restTemplate.postForEntity(url, request, String.class);
             System.out.println("Email sent successfully to " + to);
@@ -178,6 +197,7 @@ public class UserService {
                 user.getFirstName(),
                 user.getLastName(),
                 user.getPhoneNumber(),
-                user.getAddress());
+                user.getAddress(),
+                user.getRole());
     }
 }

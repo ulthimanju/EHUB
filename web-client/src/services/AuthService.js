@@ -159,6 +159,36 @@ class AuthService {
             throw new Error(error.message || 'Failed to reset password');
         }
     }
+
+    async sendOtp() {
+        const response = await fetch(`${AUTH_CONFIG.gatewayUrl}/users/send-otp`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${this.accessToken}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to send OTP');
+        }
+    }
+
+    async promoteToOrganizer(userId, otp) {
+        const response = await fetch(`${AUTH_CONFIG.gatewayUrl}/users/${userId}/roles/organizer`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.accessToken}`
+            },
+            body: JSON.stringify({ otp })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to become organizer');
+        }
+        return await response.json();
+    }
 }
 
 export default new AuthService();

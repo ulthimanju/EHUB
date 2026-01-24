@@ -7,6 +7,7 @@ import ProfilePage from './pages/ProfilePage';
 import WebSocketService from './services/WebSocketService';
 import { LoadingProvider } from './contexts/LoadingContext';
 import LoadingOverlay from './components/ui/LoadingOverlay';
+import Navbar from './components/layout/Navbar';
 import { Bell } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -31,6 +32,7 @@ const App = () => {
     <LoadingProvider>
       <Router>
         <LoadingOverlay />
+        <Navbar />
         {notification && (
           <div className="fixed top-4 right-4 bg-white shadow-lg rounded-lg p-4 border border-orange-200 z-50 animate-in slide-in-from-right flex items-center gap-3">
             <div className="p-2 bg-orange-100 rounded-full">
@@ -44,19 +46,20 @@ const App = () => {
         )}
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-          
           .font-heading { font-family: 'Space Grotesk', sans-serif; }
           .font-body { font-family: 'Inter', sans-serif; }
           .font-mono { font-family: 'JetBrains Mono', monospace; }
         `}</style>
 
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+        <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-gray-50">
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </div>
       </Router>
     </LoadingProvider>
   );

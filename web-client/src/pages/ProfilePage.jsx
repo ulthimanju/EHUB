@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User, Mail, LogOut, Edit, Phone, MapPin, Save, X, UserCircle } from 'lucide-react';
+import { User, Mail, LogOut, Edit, Phone, MapPin, Save, X, UserCircle, Hash, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -19,6 +19,11 @@ const ProfilePage = () => {
     const [error, setError] = useState('');
     const { showLoading, hideLoading } = useLoading();
     const navigate = useNavigate();
+
+    // OTP State
+    const [showOtpModal, setShowOtpModal] = useState(false);
+    const [otp, setOtp] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
 
     useEffect(() => {
         const loadProfile = async () => {
@@ -110,24 +115,86 @@ const ProfilePage = () => {
         setError('');
     };
 
+    const handleBecomeOrganizer = async () => {
+        showLoading('Sending OTP...');
+        setError('');
+        setSuccessMessage('');
+        try {
+            await AuthService.sendOtp();
+            setShowOtpModal(true);
+            setSuccessMessage(`OTP sent to ${user.email}`);
+        } catch (err) {
+            setError(err.message || 'Failed to send OTP');
+        } finally {
+            hideLoading();
+        }
+    };
+
+    const handleSubmitOtp = async () => {
+        if (!otp) {
+            setError('Please enter OTP');
+            return;
+        }
+        showLoading('Verifying OTP...');
+        setError('');
+        try {
+            const updatedUser = await AuthService.promoteToOrganizer(user.id, otp);
+            setUser({ ...user, ...updatedUser });
+            setShowOtpModal(false);
+            setSuccessMessage('You are now an Organizer!');
+            setOtp('');
+        } catch (err) {
+            setError(err.message || 'Invalid OTP or failed to promote');
+        } finally {
+            hideLoading();
+        }
+    };
+
     if (!user) {
         return null;
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-            <Card className="w-full max-w-lg p-8">
-                <div className="text-center mb-8">
-                    <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <User className="w-10 h-10 text-orange-500" />
+        <div className="flex-1 flex items-center justify-center p-4">
+            <Card className="w-full max-w-lg p-8 m-auto relative">
+                {/* OTP Modal Overlay - simple implementation inline */}
+                {showOtpModal && (
+                    <div className="absolute inset-0 bg-white/90 z-10 flex flex-col items-center justify-center p-8 rounded-2xl animate-in fade-in">
+                        <h3 className="text-xl font-heading font-bold text-gray-900 mb-4">Enter OTP</h3>
+                        <p className="text-sm text-gray-500 mb-6 text-center">We sent a code to your email to verify your request.</p>
+
+                        <div className="w-full max-w-xs space-y-4">
+                            <Input
+                                placeholder="Enter 6-digit OTP"
+                                value={otp}
+                                onChange={(e) => setOtp(e.target.value)}
+                                className="text-center text-lg tracking-widest"
+                            />
+                            <div className="flex gap-3">
+                                <Button className="flex-1" onClick={handleSubmitOtp}>Verify</Button>
+                                <Button variant="outline" className="flex-1" onClick={() => { setShowOtpModal(false); setOtp(''); setError(''); }}>Cancel</Button>
+                            </div>
+                        </div>
                     </div>
-                    <h1 className="text-2xl font-heading font-bold text-gray-900">{user.username}</h1>
-                    <p className="text-gray-500 font-body">{user.email}</p>
+                )}
+
+                <div className="text-center mb-8">
+                    <h1 className="text-2xl font-heading font-bold text-gray-900 flex items-center justify-center">
+                        <Hash className="w-6 h-6 text-orange-500" />
+                        {user.username}
+                        {user.role === 'ORGANIZER' && <span className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-600 text-xs rounded-full border border-orange-200">Organizer</span>}
+                    </h1>
                 </div>
 
                 {error && (
                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm font-body">
                         {error}
+                    </div>
+                )}
+
+                {successMessage && (
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm font-body">
+                        {successMessage}
                     </div>
                 )}
 
@@ -189,7 +256,7 @@ const ProfilePage = () => {
                         <div className="space-y-3 mb-6">
                             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
                                 <div className="flex items-center gap-3">
-                                    <Mail className="w-5 h-5 text-gray-400" />
+                                    <Mail className="w-5 h-5 text-orange-500" />
                                     <span className="text-sm font-body text-gray-600">Email</span>
                                 </div>
                                 <span className="text-sm font-semibold font-body text-gray-900">{user.email || 'Not set'}</span>
@@ -197,23 +264,19 @@ const ProfilePage = () => {
 
                             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
                                 <div className="flex items-center gap-3">
-                                    <UserCircle className="w-5 h-5 text-gray-400" />
-                                    <span className="text-sm font-body text-gray-600">First Name</span>
+                                    <UserCircle className="w-5 h-5 text-orange-500" />
+                                    <span className="text-sm font-body text-gray-600">Name</span>
                                 </div>
-                                <span className="text-sm font-semibold font-body text-gray-900">{user.firstName || 'Not set'}</span>
+                                <span className="text-sm font-semibold font-body text-gray-900">
+                                    {user.firstName && user.lastName
+                                        ? `${user.firstName} ${user.lastName}`
+                                        : user.firstName || user.lastName || 'Not set'}
+                                </span>
                             </div>
 
                             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
                                 <div className="flex items-center gap-3">
-                                    <UserCircle className="w-5 h-5 text-gray-400" />
-                                    <span className="text-sm font-body text-gray-600">Last Name</span>
-                                </div>
-                                <span className="text-sm font-semibold font-body text-gray-900">{user.lastName || 'Not set'}</span>
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
-                                <div className="flex items-center gap-3">
-                                    <Phone className="w-5 h-5 text-gray-400" />
+                                    <Phone className="w-5 h-5 text-orange-500" />
                                     <span className="text-sm font-body text-gray-600">Phone</span>
                                 </div>
                                 <span className="text-sm font-semibold font-body text-gray-900">{user.phoneNumber || 'Not set'}</span>
@@ -221,7 +284,7 @@ const ProfilePage = () => {
 
                             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
                                 <div className="flex items-center gap-3">
-                                    <MapPin className="w-5 h-5 text-gray-400" />
+                                    <MapPin className="w-5 h-5 text-orange-500" />
                                     <span className="text-sm font-body text-gray-600">Address</span>
                                 </div>
                                 <span className="text-sm font-semibold font-body text-gray-900 text-right max-w-[200px] truncate">{user.address || 'Not set'}</span>
@@ -237,14 +300,16 @@ const ProfilePage = () => {
                                 <Edit className="w-4 h-4" />
                                 Edit Profile
                             </Button>
-                            <Button
-                                variant="secondary"
-                                className="flex-1 flex items-center justify-center gap-2 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                onClick={handleLogout}
-                            >
-                                <LogOut className="w-4 h-4" />
-                                Logout
-                            </Button>
+                            {user.role !== 'ORGANIZER' && (
+                                <Button
+                                    variant="primary"
+                                    className="flex-1 flex items-center justify-center gap-2"
+                                    onClick={handleBecomeOrganizer}
+                                >
+                                    <UserPlus className="w-4 h-4" />
+                                    Become Organizer
+                                </Button>
+                            )}
                         </div>
                     </>
                 )}

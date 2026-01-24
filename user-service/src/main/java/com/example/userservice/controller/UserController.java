@@ -69,6 +69,46 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUser(id, updates));
     }
 
+    @PostMapping("/{id}/roles/organizer")
+    public ResponseEntity<UserDTO> promoteToOrganizer(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        String otp = payload.get("otp");
+        if (otp == null || otp.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(userService.promoteToOrganizer(id, otp));
+    }
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<Void> sendOtp(java.security.Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).build();
+        }
+        String email = extractEmail(principal);
+        if (email == null) {
+            // Fallback: fetch user from DB using username if email not in token
+            // For now, let's assume email is in token or we can fetch user by username
+            String username = principal.getName(); // This is preferred_username or sub
+            // We can find user by username and get email
+            // But userService.generateAndSendOtp expects email.
+            // Let's add a method in userService to send otp by username?
+            // OR just user simple extraction for now.
+            // Ideally we should look up the user DTO based on principal.
+
+            // Simplest:
+            return ResponseEntity.badRequest().build();
+        }
+        userService.generateAndSendOtp(email);
+        return ResponseEntity.ok().build();
+    }
+
+    private String extractEmail(java.security.Principal principal) {
+        if (principal instanceof org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken) {
+            var token = (org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken) principal;
+            return (String) token.getTokenAttributes().get("email");
+        }
+        return null; // Or handle other principal types
+    }
+
     @PatchMapping("/reset-password")
     public ResponseEntity<Void> resetPassword(@RequestBody Map<String, String> payload) {
         String email = payload.get("email");

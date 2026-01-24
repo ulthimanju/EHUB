@@ -52,9 +52,6 @@ services:
     build:
       context: .
       dockerfile: notification-service/Dockerfile
-    environment:
-      MAIL_USERNAME: ${MAIL_USERNAME}
-      MAIL_PASSWORD: ${MAIL_PASSWORD}
     ports:
       - "9094:8080"
 
