@@ -29,4 +29,7 @@ public class User {
     private String lastName;
     private String phoneNumber;
     private String address;
+
+    private String otp;
+    private java.time.LocalDateTime otpExpiry;
 }

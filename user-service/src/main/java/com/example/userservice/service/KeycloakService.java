@@ -47,4 +47,23 @@ public class KeycloakService {
                     + response.getStatusInfo());
         }
     }
+
+    public void resetPassword(String username, String newPassword) {
+        List<UserRepresentation> users = keycloak.realm(realm).users().search(username);
+        if (users.isEmpty()) {
+            throw new RuntimeException("User not found in Keycloak: " + username);
+        }
+        // Ensure exact match
+        UserRepresentation user = users.stream()
+                .filter(u -> u.getUsername().equals(username))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("User not found in Keycloak (exact match): " + username));
+
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setValue(newPassword);
+        credential.setTemporary(false);
+
+        keycloak.realm(realm).users().get(user.getId()).resetPassword(credential);
+    }
 }

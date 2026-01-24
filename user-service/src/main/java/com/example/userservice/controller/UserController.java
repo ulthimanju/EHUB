@@ -69,6 +69,37 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUser(id, updates));
     }
 
+    @PatchMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@RequestBody Map<String, String> payload) {
+        String email = payload.get("email");
+        String newPassword = payload.get("password");
+        // Need to find username from email for Keycloak reset, OR implement reset by
+        // email in service logic.
+        // Let's update UserService.resetPassword to take email and find username
+        // internally first.
+        userService.resetPassword(email, newPassword);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@RequestBody Map<String, String> payload) {
+        String email = payload.get("email");
+        userService.generateAndSendOtp(email);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<String> verifyOtp(@RequestBody Map<String, String> payload) {
+        String email = payload.get("email");
+        String otp = payload.get("otp");
+        try {
+            userService.verifyOtp(email, otp);
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @GetMapping
     public ResponseEntity<List<UserDTO>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());

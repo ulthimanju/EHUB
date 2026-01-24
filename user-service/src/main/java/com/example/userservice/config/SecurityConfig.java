@@ -16,6 +16,8 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/users").permitAll()
+                        .requestMatchers("/users/forgot-password", "/users/verify-otp", "/users/reset-password")
+                        .permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2

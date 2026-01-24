@@ -1,0 +1,17 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: notification-service
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: umanjunath2003@gmail.com
+    password: "bpovpnyyklsoyixy"
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true

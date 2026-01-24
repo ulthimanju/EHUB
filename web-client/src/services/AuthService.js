@@ -114,6 +114,51 @@ class AuthService {
     getUser() {
         return this.user;
     }
+
+    async forgotPassword(email) {
+        const response = await fetch(`${AUTH_CONFIG.gatewayUrl}/users/forgot-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to send OTP');
+        }
+    }
+
+    async verifyOtp(email, otp) {
+        const response = await fetch(`${AUTH_CONFIG.gatewayUrl}/users/verify-otp`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, otp })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Invalid OTP');
+        }
+    }
+
+    async resetPassword(email, password) {
+        const response = await fetch(`${AUTH_CONFIG.gatewayUrl}/users/reset-password`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to reset password');
+        }
+    }
 }
 
 export default new AuthService();

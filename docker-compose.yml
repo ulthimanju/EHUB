@@ -48,6 +48,16 @@ services:
     depends_on:
       - postgres
 
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    environment:
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+    ports:
+      - "9094:8080"
+
   postgres:
     image: postgres:16-alpine
     environment:

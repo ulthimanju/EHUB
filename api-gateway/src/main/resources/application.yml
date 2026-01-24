@@ -9,8 +9,26 @@ spring:
       globalcors:
         corsConfigurations:
           '[/users/**]':
-            allowedOrigins:
+            allowedOrigins: &allowedOrigins
               - "http://localhost:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+          '[/notifications/**]':
+            allowedOrigins: *allowedOrigins
+            allowedMethods:
+              - POST
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+          '[/ws/**]':
+            allowedOrigins: *allowedOrigins
             allowedMethods:
               - GET
               - POST
@@ -25,10 +43,16 @@ spring:
           uri: http://user-service:8080
           predicates:
             - Path=/users/**
+        - id: notification-service
+          uri: http://notification-service:8080
+          predicates:
+            - Path=/notifications/**
         - id: websocket
-          uri: http://user-service:8080
+          uri: ws://user-service:8080
           predicates:
             - Path=/ws/**
+          filters:
+            - RemoveRequestHeader=Origin
         - id: keycloak
           uri: http://keycloak:8080
           predicates:
