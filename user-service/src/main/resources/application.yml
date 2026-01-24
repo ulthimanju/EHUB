@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: user-service
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_URL:http://keycloak:8080}/realms/ehub-realm
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/userdb}
+    username: ${SPRING_DATASOURCE_USERNAME:admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+keycloak:
+  server-url: ${KEYCLOAK_URL:http://keycloak:8080}
+  realm: ehub-realm
+  resource: admin-cli
+  username: ${KEYCLOAK_ADMIN:admin}
+  password: ${KEYCLOAK_ADMIN_PASSWORD:admin}
