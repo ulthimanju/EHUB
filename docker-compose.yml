@@ -55,6 +55,19 @@ services:
     ports:
       - "9094:8080"
 
+  event-service:
+    build:
+      context: .
+      dockerfile: event-service/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/eventdb
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: password
+    ports:
+      - "9095:8080"
+    depends_on:
+      - postgres
+
   postgres:
     image: postgres:16-alpine
     environment:

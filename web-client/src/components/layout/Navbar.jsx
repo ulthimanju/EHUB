@@ -41,9 +41,7 @@ const Navbar = () => {
         navigate('/login');
     };
 
-    const isActive = (path) => {
-        return location.pathname === path ? 'text-orange-500 font-semibold' : 'text-gray-600 hover:text-orange-500';
-    };
+
 
     if (['/login', '/register'].includes(location.pathname)) {
         return null; // Don't show navbar on auth pages
@@ -60,6 +58,13 @@ const Navbar = () => {
                                 <Calendar className="w-5 h-5 text-white" />
                             </div>
                             <span className="font-heading font-bold text-xl text-gray-900">EventHub</span>
+                        </Link>
+                    </div>
+
+                    {/* Main Nav Links */}
+                    <div className="hidden md:flex items-center ml-8 gap-6">
+                        <Link to="/events" className="text-gray-600 hover:text-orange-600 font-medium font-body transition-colors">
+                            Explore Events
                         </Link>
                     </div>
 
@@ -107,21 +112,29 @@ const Navbar = () => {
                 <div className="md:hidden bg-white border-t border-gray-100">
                     <div className="pt-4 pb-4 border-t border-gray-200 px-4">
                         {user ? (
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center" onClick={() => { setIsOpen(false); setIsProfileDrawerOpen(true); }}>
-                                    <div className="flex-shrink-0">
-                                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-lg">
-                                            {user.username?.[0]?.toUpperCase()}
+                            <div className="flex flex-col gap-4">
+                                <Link to="/events" className="text-gray-600 font-medium px-2 py-1" onClick={() => setIsOpen(false)}>
+                                    Explore Events
+                                </Link>
+                                <div className="flex items-center justify-between mt-2 pt-4 border-t border-gray-100">
+                                    <div className="flex items-center" onClick={() => { setIsOpen(false); setIsProfileDrawerOpen(true); }}>
+                                        <div className="flex-shrink-0">
+                                            <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-lg">
+                                                {user.username?.[0]?.toUpperCase()}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="ml-3">
-                                        <div className="text-base font-medium text-gray-800">{user.firstName} {user.lastName}</div>
-                                        <div className="text-sm font-medium text-gray-500">{user.email}</div>
+                                        <div className="ml-3">
+                                            <div className="text-base font-medium text-gray-800">{user.firstName} {user.lastName}</div>
+                                            <div className="text-sm font-medium text-gray-500">{user.email}</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         ) : (
                             <div className="space-y-3 mt-2">
+                                <Link to="/events" className="block text-gray-600 font-medium mb-4" onClick={() => setIsOpen(false)}>
+                                    Explore Events
+                                </Link>
                                 <Link to="/login" className="block w-full">
                                     <Button variant="secondary" className="w-full justify-center">Sign In</Button>
                                 </Link>
@@ -158,7 +171,7 @@ const Navbar = () => {
                                     View Full Profile
                                 </Button>
                             </Link>
-                            <Link to="/create-event" onClick={() => setIsProfileDrawerOpen(false)} className="block w-full">
+                            <Link to="/events/new" onClick={() => setIsProfileDrawerOpen(false)} className="block w-full">
                                 <Button variant="secondary" className="w-full flex items-center !justify-start gap-3 !px-4 !py-4 text-base shadow-sm hover:shadow-md transition-all">
                                     <PlusCircle className="w-5 h-5 text-gray-500" />
                                     Create Event

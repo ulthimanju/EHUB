@@ -1,2 +1,3 @@
 CREATE DATABASE keycloakdb;
 CREATE DATABASE userdb;
+CREATE DATABASE eventdb;

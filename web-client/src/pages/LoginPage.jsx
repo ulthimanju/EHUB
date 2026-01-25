@@ -41,7 +41,8 @@ const LoginPage = () => {
         try {
             await AuthService.login(username, password);
             hideLoading();
-            navigate('/profile');
+            const from = location.state?.from?.pathname || '/profile';
+            navigate(from, { replace: true });
         } catch (error) {
             setError(error.message || 'Login failed. Please check your credentials.');
         } finally {

@@ -41,6 +41,7 @@ class AuthService {
 
         // Decode user info from JWT token (avoids CORS issues with userinfo endpoint)
         this.decodeUserFromToken();
+        await this.fetchUserFromBackend();
 
         return data;
     }

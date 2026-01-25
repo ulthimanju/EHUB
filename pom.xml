@@ -20,6 +20,7 @@
         <module>common-library</module>
         <module>user-service</module>
         <module>notification-service</module>
+        <module>event-service</module>
     </modules>
 
     <properties>
