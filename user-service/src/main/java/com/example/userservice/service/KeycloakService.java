@@ -48,6 +48,25 @@ public class KeycloakService {
         }
     }
 
+    /**
+     * Deletes a user from Keycloak by username.
+     * Used for rollback in case of local DB failure.
+     */
+    public void deleteUser(String username) {
+        List<UserRepresentation> users = keycloak.realm(realm).users().search(username);
+        if (!users.isEmpty()) {
+            UserRepresentation user = users.stream()
+                    .filter(u -> u.getUsername().equals(username))
+                    .findFirst()
+                    .orElse(null);
+
+            if (user != null) {
+                keycloak.realm(realm).users().get(user.getId()).remove();
+                System.out.println("Rolled back (deleted) user from Keycloak: " + username);
+            }
+        }
+    }
+
     public void resetPassword(String username, String newPassword) {
         List<UserRepresentation> users = keycloak.realm(realm).users().search(username);
         if (users.isEmpty()) {

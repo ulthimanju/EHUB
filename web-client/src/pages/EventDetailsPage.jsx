@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import EventService from '../services/EventService';
+import AuthService from '../services/AuthService';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { Calendar, MapPin, ArrowLeft, Trash2, Edit, User, Share2, Loader2 } from 'lucide-react';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 const EventDetailsPage = () => {
     const { id } = useParams();
@@ -12,6 +15,26 @@ const EventDetailsPage = () => {
     const [event, setEvent] = useState(null);
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState(false);
+    const [showProblemForm, setShowProblemForm] = useState(false);
+    const [newProblem, setNewProblem] = useState({ title: '', description: '' });
+    const [isAddingProblem, setIsAddingProblem] = useState(false);
+
+    const handleAddProblemStatement = async (e) => {
+        e.preventDefault();
+        setIsAddingProblem(true);
+        try {
+            await EventService.addProblemStatement(id, newProblem);
+            const updatedEvent = await EventService.getEventById(id);
+            setEvent(updatedEvent);
+            setShowProblemForm(false);
+            setNewProblem({ title: '', description: '' });
+        } catch (error) {
+            console.error(error);
+            alert('Failed to add problem statement');
+        } finally {
+            setIsAddingProblem(false);
+        }
+    };
 
     useEffect(() => {
         const fetchEvent = async () => {
@@ -26,6 +49,34 @@ const EventDetailsPage = () => {
         };
 
         fetchEvent();
+
+        // WebSocket Integration
+        const socket = new SockJS('http://localhost:9092/ws-events');
+        const stompClient = new Client({
+            webSocketFactory: () => socket,
+            onConnect: () => {
+                console.log('Connected to WebSocket');
+                stompClient.subscribe(`/topic/events/${id}/problem-statements`, (message) => {
+                    const newProblemStatement = JSON.parse(message.body);
+                    setEvent((prevEvent) => {
+                        if (!prevEvent) return prevEvent;
+                        // Avoid duplicates if needed, but here just append
+                        const updatedProblems = prevEvent.problemStatements ? [...prevEvent.problemStatements, newProblemStatement] : [newProblemStatement];
+                        return { ...prevEvent, problemStatements: updatedProblems };
+                    });
+                });
+            },
+            onStompError: (frame) => {
+                console.error('Broker reported error: ' + frame.headers['message']);
+                console.error('Additional details: ' + frame.body);
+            },
+        });
+
+        stompClient.activate();
+
+        return () => {
+            stompClient.deactivate();
+        };
     }, [id]);
 
     const handleDelete = async () => {
@@ -127,6 +178,65 @@ const EventDetailsPage = () => {
                             </div>
                         </Card>
 
+                        {/* Problem Statements Section (Hackathon Only) */}
+                        {event.eventType === 'HACKATHON' && (
+                            <Card>
+                                <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
+                                    <h3 className="text-xl font-bold text-gray-900 font-heading border-l-4 border-purple-500 pl-4">
+                                        Problem Statements
+                                    </h3>
+                                    {AuthService.getUser() && (AuthService.getUser().sub === event.organizerUserId || AuthService.getUser().id === event.organizerId) && (
+                                        <Button size="sm" onClick={() => setShowProblemForm(!showProblemForm)}>
+                                            {showProblemForm ? 'Cancel' : 'Add Problem'}
+                                        </Button>
+                                    )}
+                                </div>
+
+                                {showProblemForm && (
+                                    <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                        <form onSubmit={handleAddProblemStatement}>
+                                            <div className="mb-4">
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full p-2 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
+                                                    value={newProblem.title}
+                                                    onChange={(e) => setNewProblem({ ...newProblem, title: e.target.value })}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="mb-4">
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                                <textarea
+                                                    className="w-full p-2 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
+                                                    rows="3"
+                                                    value={newProblem.description}
+                                                    onChange={(e) => setNewProblem({ ...newProblem, description: e.target.value })}
+                                                    required
+                                                />
+                                            </div>
+                                            <Button type="submit" disabled={isAddingProblem}>
+                                                {isAddingProblem ? 'Adding...' : 'Save Problem Statement'}
+                                            </Button>
+                                        </form>
+                                    </div>
+                                )}
+
+                                <div className="space-y-4">
+                                    {event.problemStatements && event.problemStatements.length > 0 ? (
+                                        event.problemStatements.map((ps) => (
+                                            <div key={ps.id} className="p-4 bg-white border border-gray-100 rounded-lg shadow-sm">
+                                                <h4 className="font-bold text-lg text-gray-800 mb-2">{ps.title}</h4>
+                                                <p className="text-gray-600 whitespace-pre-line">{ps.description}</p>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-gray-500 italic">No problem statements added yet.</p>
+                                    )}
+                                </div>
+                            </Card>
+                        )}
+
                         {/* Location Card */}
                         <Card>
                             <h3 className="text-xl font-bold text-gray-900 mb-4 font-heading border-l-4 border-orange-400 pl-4">Location</h3>
@@ -185,28 +295,32 @@ const EventDetailsPage = () => {
                         </Card>
 
                         {/* Admin Actions */}
-                        <Card className="!bg-red-50 !border-red-100">
-                            <h3 className="text-lg font-bold text-red-800 mb-4 pb-2 border-b border-red-100 font-heading">Admin Zone</h3>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => navigate(`/events/${id}/edit`)}
-                                    className="flex-1 !text-red-600 !border-red-200 hover:!bg-red-50 flex items-center justify-center gap-1"
-                                >
-                                    <Edit className="w-4 h-4" /> Edit
-                                </Button>
-                                <Button
-                                    onClick={handleDelete}
-                                    disabled={deleting}
-                                    className="flex-1 !bg-red-600 hover:!bg-red-700 flex items-center justify-center gap-1"
-                                >
-                                    {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> :
-                                        <>
-                                            <Trash2 className="w-4 h-4" /> Delete
-                                        </>}
-                                </Button>
-                            </div>
-                        </Card>
+
+                        {/* Only show Admin Zone if the current user is the organizer */}
+                        {AuthService.getUser() && (AuthService.getUser().sub === event.organizerUserId || AuthService.getUser().id === event.organizerId) && (
+                            <Card className="!bg-red-50 !border-red-100">
+                                <h3 className="text-lg font-bold text-red-800 mb-4 pb-2 border-b border-red-100 font-heading">Admin Zone</h3>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => navigate(`/events/${id}/edit`)}
+                                        className="flex-1 !text-red-600 !border-red-200 hover:!bg-red-50 flex items-center justify-center gap-1"
+                                    >
+                                        <Edit className="w-4 h-4" /> Edit
+                                    </Button>
+                                    <Button
+                                        onClick={handleDelete}
+                                        disabled={deleting}
+                                        className="flex-1 !bg-red-600 hover:!bg-red-700 flex items-center justify-center gap-1"
+                                    >
+                                        {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> :
+                                            <>
+                                                <Trash2 className="w-4 h-4" /> Delete
+                                            </>}
+                                    </Button>
+                                </div>
+                            </Card>
+                        )}
                     </div>
                 </div>
             </div>

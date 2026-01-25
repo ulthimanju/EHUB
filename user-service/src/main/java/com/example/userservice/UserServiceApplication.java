@@ -2,9 +2,12 @@ package com.example.userservice;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 @SpringBootApplication
-@org.springframework.context.annotation.ComponentScan(basePackages = {"com.example.userservice", "com.example.common"})
+@EnableJpaAuditing
+@org.springframework.context.annotation.ComponentScan(basePackages = { "com.example.userservice",
+        "com.example.common" })
 public class UserServiceApplication {
 
     public static void main(String[] args) {

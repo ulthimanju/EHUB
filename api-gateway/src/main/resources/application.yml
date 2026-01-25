@@ -8,8 +8,8 @@ spring:
     gateway:
       globalcors:
         corsConfigurations:
-          '[/users/**]':
-            allowedOrigins: &allowedOrigins
+          '[/**]':
+            allowedOrigins:
               - "http://localhost:3000"
             allowedMethods:
               - GET
@@ -20,24 +20,8 @@ spring:
               - OPTIONS
             allowedHeaders: "*"
             allowCredentials: true
-          '[/notifications/**]':
-            allowedOrigins: *allowedOrigins
-            allowedMethods:
-              - POST
-              - OPTIONS
-            allowedHeaders: "*"
-            allowCredentials: true
-          '[/events/**]':
-            allowedOrigins: *allowedOrigins
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - PATCH
-              - DELETE
-              - OPTIONS
-            allowedHeaders: "*"
-            allowCredentials: true
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
       routes:
         - id: user-service
           uri: http://user-service:8080
@@ -47,6 +31,10 @@ spring:
           uri: http://user-service:8080
           predicates:
             - Path=/ws/**
+        - id: websocket-events
+          uri: http://event-service:8080
+          predicates:
+            - Path=/ws-events/**
         - id: notification-service
           uri: http://notification-service:8080
           predicates:

@@ -1,0 +1,55 @@
+{
+    "realm": "ehub-realm",
+    "enabled": true,
+    "registrationAllowed": true,
+    "loginWithEmailAllowed": true,
+    "duplicateEmailsAllowed": false,
+    "resetPasswordAllowed": true,
+    "editUsernameAllowed": false,
+    "bruteForceProtected": true,
+    "accessTokenLifespan": 300,
+    "ssoSessionIdleTimeout": 1800,
+    "ssoSessionMaxLifespan": 36000,
+    "clients": [
+        {
+            "clientId": "web-client",
+            "name": "Web Client",
+            "enabled": true,
+            "publicClient": true,
+            "directAccessGrantsEnabled": true,
+            "standardFlowEnabled": true,
+            "implicitFlowEnabled": false,
+            "redirectUris": [
+                "http://localhost:3000/*",
+                "http://localhost:9092/*"
+            ],
+            "webOrigins": [
+                "http://localhost:3000",
+                "http://localhost:9092"
+            ],
+            "protocol": "openid-connect",
+            "attributes": {
+                "post.logout.redirect.uris": "http://localhost:3000/*"
+            }
+        }
+    ],
+    "roles": {
+        "realm": [
+            {
+                "name": "user",
+                "description": "Default user role"
+            },
+            {
+                "name": "organizer",
+                "description": "Event organizer role"
+            },
+            {
+                "name": "admin",
+                "description": "Administrator role"
+            }
+        ]
+    },
+    "defaultRoles": [
+        "user"
+    ]
+}

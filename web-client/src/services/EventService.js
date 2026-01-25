@@ -59,6 +59,17 @@ class EventService {
             method: 'DELETE'
         });
     }
+    async getMyEvents() {
+        return this.request('/events/my-events');
+    }
+
+    async addProblemStatement(eventId, problemStatement) {
+        return this.request(`/events/${eventId}/problem-statements`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(problemStatement)
+        });
+    }
 }
 
 export default new EventService();

@@ -1,17 +1,28 @@
 package com.example.eventservice.entity;
 
-import jakarta.persistence.*;
+import java.util.HashSet;
+import java.util.Set;
+
+import org.hibernate.annotations.BatchSize;
+
+import com.example.common.entity.BaseEntity;
+
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
 
 @Entity
 @Data
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Venue {
+public class Venue extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long venueId;
@@ -21,5 +32,6 @@ public class Venue {
     private Integer capacity;
 
     @ElementCollection
-    private List<String> facilities;
+    @BatchSize(size = 20)
+    private Set<String> facilities = new HashSet<>();
 }

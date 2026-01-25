@@ -16,7 +16,7 @@ const EventCreatePage = () => {
         description: '',
         startDate: '',
         endDate: '',
-        eventType: 'Conference',
+        eventType: 'Hackathon',
         location: '',
         organizerId: ''
     });
@@ -59,7 +59,7 @@ const EventCreatePage = () => {
         }
     };
 
-    const eventTypes = ['Conference', 'Workshop', 'Concert', 'Sports', 'Hackathon'];
+    const eventTypes = ['Hackathon'];
 
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">

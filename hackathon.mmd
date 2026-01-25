@@ -1,0 +1,20 @@
+graph TB
+    Event[Event]
+    
+    Event -->|has| Registrations[Registrations]
+    
+    Registrations -->|assigns to| TeamA[Team A]
+    Registrations -->|assigns to| TeamB[Team B]
+    
+    TeamA -->|has| PlayersA[Players A]
+    TeamB -->|has| PlayersB[Players B]
+    
+    Event -->|organizes| Match[Match/Competition]
+    
+    TeamA -->|participates in| Match
+    TeamB -->|participates in| Match
+    
+    Match -->|produces| Results[Results]
+    
+    Results -->|records| Winner[Winner]
+    Results -->|records| Stats[Statistics]

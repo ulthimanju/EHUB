@@ -66,6 +66,11 @@ const Navbar = () => {
                         <Link to="/events" className="text-gray-600 hover:text-orange-600 font-medium font-body transition-colors">
                             Explore Events
                         </Link>
+                        {user && (
+                            <Link to="/my-events" className="text-gray-600 hover:text-orange-600 font-medium font-body transition-colors">
+                                My Events
+                            </Link>
+                        )}
                     </div>
 
                     {/* Right Side Buttons */}

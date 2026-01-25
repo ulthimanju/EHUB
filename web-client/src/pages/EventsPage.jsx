@@ -42,7 +42,7 @@ const EventsPage = () => {
         return matchesSearch && matchesFilter;
     });
 
-    const eventTypes = ['All Types', 'Conference', 'Workshop', 'Concert', 'Sports', 'Hackathon'];
+    const eventTypes = ['All Types', 'Hackathon'];
 
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -57,10 +57,6 @@ const EventsPage = () => {
                             Discover and join amazing events happening around you.
                         </p>
                     </div>
-                    <Button onClick={() => navigate('/events/new')} className="flex items-center gap-2">
-                        <Plus className="w-5 h-5" />
-                        Create Event
-                    </Button>
                 </div>
 
                 {/* Search and Filter */}
