@@ -56,9 +56,14 @@ public class UserService {
     }
 
     public UserDTO updateUser(Long id, Map<String, Object> updates) {
-        User user = userRepository.findById(id)
+        return userRepository.findById(id)
+                .map(user -> applyUpdates(user, updates))
+                .map(userRepository::save)
+                .map(this::mapToDTO)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+    }
 
+    private User applyUpdates(User user, Map<String, Object> updates) {
         updates.forEach((key, value) -> {
             Field field = ReflectionUtils.findField(User.class, key);
             if (field != null) {
@@ -66,9 +71,7 @@ public class UserService {
                 ReflectionUtils.setField(field, user, value);
             }
         });
-
-        User savedUser = userRepository.save(user);
-        return mapToDTO(savedUser);
+        return user;
     }
 
     public List<UserDTO> getAllUsers() {
@@ -95,21 +98,24 @@ public class UserService {
 
     @Transactional(rollbackFor = Exception.class)
     public UserDTO promoteToOrganizer(Long userId, String otp) {
-        User user = userRepository.findById(userId)
+        return userRepository.findById(userId)
+                .map(user -> verifyAndPromote(user, otp))
+                .map(this::syncKeycloak)
+                .map(this::mapToDTO)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+    }
 
-        // Verify OTP using centralized service
+    private User verifyAndPromote(User user, String otp) {
+        // Verify OTP using centralized service - throws exception if invalid
         otpService.verifyOtp(user.getOtp(), user.getOtpExpiry(), otp);
 
-        // Clear OTP after verification
-        user.setOtp(null);
-        user.setOtpExpiry(null);
+        // Encapsulated update on entity
+        user.promoteToOrganizer();
 
-        // Update local role
-        user.setRole(AppConstants.ROLE_ORGANIZER);
-        User savedUser = userRepository.save(user);
+        return user;
+    }
 
-        // Update Keycloak
+    private User syncKeycloak(User user) {
         try {
             keycloakService.assignRole(user.getUsername(), AppConstants.ROLE_ORGANIZER);
         } catch (Exception e) {
@@ -118,8 +124,7 @@ public class UserService {
             throw new com.example.common.exception.RolePromotionException(
                     "Failed to promote user in Keycloak: " + e.getMessage(), e);
         }
-
-        return mapToDTO(savedUser);
+        return user;
     }
 
     /**
@@ -127,18 +132,25 @@ public class UserService {
      */
     @Transactional
     public void generateOtpForRoleUpgrade(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        userRepository.findById(userId)
+                .map(this::setOtpForUpgrade)
+                .map(userRepository::save)
+                .ifPresentOrElse(
+                        user -> {
+                            System.out.println("Role upgrade OTP for " + user.getEmail() + ": " + user.getOtp());
+                            notificationClient.sendRoleUpgradeOtpEmail(user.getEmail(), user.getOtp(),
+                                    AppConstants.ROLE_ORGANIZER);
+                        },
+                        () -> {
+                            throw new ResourceNotFoundException("User", "id", userId);
+                        });
+    }
 
+    private User setOtpForUpgrade(User user) {
         String otp = otpService.generateOtp();
         user.setOtp(otp);
         user.setOtpExpiry(otpService.getExpiryTime());
-        userRepository.save(user);
-
-        System.out.println("Role upgrade OTP for " + user.getEmail() + ": " + otp);
-
-        // Send OTP via notification service
-        notificationClient.sendRoleUpgradeOtpEmail(user.getEmail(), otp, AppConstants.ROLE_ORGANIZER);
+        return user;
     }
 
     // ==================== MAPPER ====================

@@ -6,8 +6,6 @@ import com.example.common.entity.BaseEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -32,7 +30,7 @@ import lombok.NoArgsConstructor;
 public class User extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @com.example.common.id.SnowflakeId
     private Long id;
 
     @Column(unique = true, nullable = false)
@@ -49,4 +47,11 @@ public class User extends BaseEntity {
 
     private String otp;
     private Instant otpExpiry;
+
+    public void promoteToOrganizer() {
+        this.role = "ORGANIZER"; // Ensure this matches constant in AppConstants, currently using string literal
+                                 // to avoid dependency here
+        this.otp = null;
+        this.otpExpiry = null;
+    }
 }

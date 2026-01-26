@@ -6,28 +6,21 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
-import com.example.common.config.CorsProperties;
-
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    private final CorsProperties corsProperties;
-
-    public WebSocketConfig(CorsProperties corsProperties) {
-        this.corsProperties = corsProperties;
-    }
-
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic");
+        config.enableSimpleBroker("/topic", "/queue");
         config.setApplicationDestinationPrefixes("/app");
+        config.setUserDestinationPrefix("/user");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws-events")
-                .setAllowedOriginPatterns(corsProperties.getAllowedOriginPattern())
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("*") // Allow all for development
                 .withSockJS();
     }
 }

@@ -1,5 +1,6 @@
 package com.example.eventservice.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,5 +14,8 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
 
     boolean existsByTeamCode(String teamCode);
 
-    boolean existsByHackathonIdAndLeaderUserId(Long hackathonId, String leaderUserId);
+    // Look up by Hackathon (using EventId property from inherited Event class)
+    boolean existsByHackathonEventIdAndLeaderUserId(Long hackathonId, String leaderUserId);
+
+    List<Team> findByHackathonEventId(Long hackathonId);
 }

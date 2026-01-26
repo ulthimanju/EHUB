@@ -48,12 +48,17 @@ public class Hackathon extends Event {
     private Set<String> technologies = new HashSet<>();
 
     /**
-     * Teams participating in this hackathon.
-     * Changed to Set for uniqueness and added BatchSize to reduce N+1 queries.
+     * Legacy teams list.
+     * 
+     * @deprecated Use participatingTeams instead.
      */
+    @Deprecated
     @ElementCollection(fetch = FetchType.LAZY)
     @BatchSize(size = 20)
     private Set<String> teams = new HashSet<>();
+
+    @OneToMany(mappedBy = "hackathon", fetch = FetchType.LAZY)
+    private List<Team> participatingTeams = new ArrayList<>();
 
     /**
      * Problem statements for this hackathon.

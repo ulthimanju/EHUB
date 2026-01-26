@@ -27,28 +27,19 @@ public class EventService {
         return eventRepository.findById(id);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public Event updateEvent(Long id, Event eventDetails) {
-        return eventRepository.findById(id).map(event -> {
-            event.setEventName(eventDetails.getEventName());
-            event.setEventType(eventDetails.getEventType());
-            event.setStartDate(eventDetails.getStartDate());
-            event.setEndDate(eventDetails.getEndDate());
-            event.setLocation(eventDetails.getLocation());
-            event.setDescription(eventDetails.getDescription());
-            event.setStatus(eventDetails.getStatus());
-            event.setVenue(eventDetails.getVenue());
-            // Note: Inheritance-specific fields need checking if we want to update generic
-            // Event.
-            // Better to update specific types in a real app, but this is a start.
-            return eventRepository.save(event);
-        }).orElse(null);
+        Event event = eventRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Event not found with id: " + id));
+        event.updateFrom(eventDetails);
+        return event;
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void deleteEvent(Long id) {
-        eventRepository.findById(id).ifPresent(event -> {
-            event.setStatus(com.example.eventservice.entity.EventStatus.CANCELLED);
-            eventRepository.save(event);
-        });
+        Event event = eventRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Event not found with id: " + id));
+        event.cancel();
     }
 
     @Autowired
@@ -56,15 +47,22 @@ public class EventService {
 
     public com.example.eventservice.entity.ProblemStatement addProblemStatement(Long hackathonId,
             com.example.eventservice.entity.ProblemStatement problemStatement) {
-        return eventRepository.findById(hackathonId).map(event -> {
-            if (event instanceof com.example.eventservice.entity.Hackathon) {
-                com.example.eventservice.entity.Hackathon hackathon = (com.example.eventservice.entity.Hackathon) event;
-                problemStatement.setHackathon(hackathon);
-                return problemStatementRepository.save(problemStatement);
-            } else {
-                throw new RuntimeException("Event is not a Hackathon");
-            }
-        }).orElseThrow(() -> new RuntimeException("Event not found"));
+        return eventRepository.findById(hackathonId)
+                .map(event -> validateAndLinkProblem(event, problemStatement))
+                .map(problemStatementRepository::save)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException(
+                        "Event not found with id: " + hackathonId));
+    }
+
+    private com.example.eventservice.entity.ProblemStatement validateAndLinkProblem(Event event,
+            com.example.eventservice.entity.ProblemStatement problemStatement) {
+        if (event instanceof com.example.eventservice.entity.Hackathon) {
+            com.example.eventservice.entity.Hackathon hackathon = (com.example.eventservice.entity.Hackathon) event;
+            problemStatement.setHackathon(hackathon);
+            return problemStatement;
+        } else {
+            throw new RuntimeException("Event is not a Hackathon");
+        }
     }
 
     public List<Event> getEventsByOrganizer(String organizerUserId) {

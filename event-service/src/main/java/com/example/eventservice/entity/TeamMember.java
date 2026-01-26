@@ -7,8 +7,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
@@ -34,7 +32,7 @@ import lombok.NoArgsConstructor;
 public class TeamMember extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @com.example.common.id.SnowflakeId
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -47,4 +45,8 @@ public class TeamMember extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TeamMemberStatus status;
+
+    public void approve() {
+        this.status = TeamMemberStatus.MEMBER;
+    }
 }

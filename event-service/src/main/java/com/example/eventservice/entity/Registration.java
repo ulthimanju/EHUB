@@ -10,8 +10,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
@@ -38,13 +36,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Registration extends BaseEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @com.example.common.id.SnowflakeId
     private Long registrationId;
 
     private Instant registrationDate;
 
     @Enumerated(EnumType.STRING)
-    private RegistrationStatus status;
+    private RegistrationStatus registrationStatus;
 
     private BigDecimal amount;
 

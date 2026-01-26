@@ -9,8 +9,6 @@ import com.example.common.entity.BaseEntity;
 
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -24,7 +22,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Venue extends BaseEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @com.example.common.id.SnowflakeId
     private Long venueId;
 
     private String venueName;
