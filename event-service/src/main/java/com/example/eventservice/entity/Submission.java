@@ -43,6 +43,9 @@ public class Submission extends BaseEntity {
     @JoinColumn(name = "problem_statement_id")
     private ProblemStatement problemStatement;
 
+    @jakarta.persistence.OneToMany(mappedBy = "submission", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<Score> scores = new java.util.ArrayList<>();
+
     public void updateFrom(com.example.eventservice.dto.SubmissionDto dto, ProblemStatement problemStatement) {
         this.repoUrl = dto.getRepoUrl();
         this.demoUrl = dto.getDemoUrl();

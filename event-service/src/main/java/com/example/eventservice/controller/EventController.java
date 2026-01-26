@@ -105,9 +105,9 @@ public class EventController {
                 Event updatedEvent = eventService.updateEvent(id, event);
                 return ResponseEntity.ok(ApiResponse.success(updatedEvent, "Event updated successfully"));
             } catch (jakarta.persistence.EntityNotFoundException e) {
-                return ResponseEntity.status(404).body(ApiResponse.error("NOT_FOUND", "Event not found"));
+                return ResponseEntity.status(404).body(ApiResponse.<Event>error("NOT_FOUND", "Event not found"));
             }
-        }).orElse(ResponseEntity.status(404).body(ApiResponse.error("NOT_FOUND", "Event not found")));
+        }).orElse(ResponseEntity.status(404).body(ApiResponse.<Event>error("NOT_FOUND", "Event not found")));
     }
 
     @DeleteMapping("/{id}")

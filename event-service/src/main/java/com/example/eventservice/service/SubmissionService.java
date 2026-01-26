@@ -21,12 +21,31 @@ public class SubmissionService {
     private final SubmissionRepository submissionRepository;
     private final TeamRepository teamRepository;
     private final ProblemStatementRepository problemStatementRepository;
+    private final GeminiService geminiService;
+    private final com.example.eventservice.repository.ScoreRepository scoreRepository;
 
     public SubmissionService(SubmissionRepository submissionRepository, TeamRepository teamRepository,
-            ProblemStatementRepository problemStatementRepository) {
+            ProblemStatementRepository problemStatementRepository, GeminiService geminiService,
+            com.example.eventservice.repository.ScoreRepository scoreRepository) {
         this.submissionRepository = submissionRepository;
         this.teamRepository = teamRepository;
         this.problemStatementRepository = problemStatementRepository;
+        this.geminiService = geminiService;
+        this.scoreRepository = scoreRepository;
+    }
+
+    @Transactional
+    public com.example.eventservice.entity.Score evaluateSubmission(Long submissionId) {
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission", "id", submissionId));
+
+        if (submission.getProblemStatement() == null) {
+            throw new RuntimeException("Submission does not have a problem statement");
+        }
+
+        com.example.eventservice.entity.Score score = geminiService.evaluate(submission,
+                submission.getProblemStatement());
+        return scoreRepository.save(score);
     }
 
     @Transactional

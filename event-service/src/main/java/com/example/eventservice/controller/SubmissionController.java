@@ -36,4 +36,10 @@ public class SubmissionController {
     public ResponseEntity<ApiResponse<Submission>> getSubmission(@PathVariable Long teamId) {
         return ResponseEntity.ok(ApiResponse.success(submissionService.getSubmission(teamId)));
     }
+
+    @PostMapping("/submissions/{id}/evaluate")
+    public ResponseEntity<ApiResponse<com.example.eventservice.entity.Score>> evaluateSubmission(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(submissionService.evaluateSubmission(id)));
+    }
 }
