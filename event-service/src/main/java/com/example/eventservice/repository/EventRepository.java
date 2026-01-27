@@ -9,5 +9,9 @@ import com.example.eventservice.entity.Event;
 
 @Repository
 public interface EventRepository extends JpaRepository<Event, Long> {
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "venue")
+    List<Event> findAll();
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "venue")
     List<Event> findByOrganizerUserId(String organizerUserId);
 }
