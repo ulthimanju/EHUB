@@ -135,49 +135,4 @@ public class KeycloakService {
          */
     }
 
-    private void updateUserProfileConfiguration() {
-        // Fetch current configuration
-        // Note: This requires the UserProfile feature to be enabled in Keycloak, which
-        // is true by default in recent versions
-        try {
-            org.keycloak.admin.client.resource.UserProfileResource userProfileResource = keycloak.realm(realm).users()
-                    .userProfile();
-            org.keycloak.representations.userprofile.config.UPConfig config = userProfileResource.getConfiguration();
-
-            boolean changed = false;
-
-            // Make firstName optional
-            if (config.getAttributes() != null) {
-                for (org.keycloak.representations.userprofile.config.UPAttribute attr : config.getAttributes()) {
-                    if ("firstName".equals(attr.getName()) || "lastName".equals(attr.getName())) {
-                        if (attr.getRequired() != null) {
-                            // In older admin-clients/representations, isRequired might be boolean or object
-                            // We'll simplify by removing the required validator if simpler ways fail,
-                            // but usually there's a setter or we manipulate the map
-
-                            // Adjusting requirements: Set required to false (if setter exists) or remove it
-                            // Note: Implementation details depend on the exact Keycloak client version
-                            // structure.
-                            // For 24.x, UPAttribute has setRequired(UPAttributeRequired)
-
-                            attr.setRequired(null); // Make it optional
-                            changed = true;
-                            System.out.println("Made " + attr.getName() + " optional in Keycloak UserProfile.");
-                        }
-                    }
-                }
-            }
-
-            if (changed) {
-                userProfileResource.update(config);
-                System.out.println("Keycloak UserProfile configuration updated successfully.");
-            }
-        } catch (Exception e) {
-            // If API not found or failed, log it. common if feature disabled or client
-            // mismatch.
-            System.out.println("Warning: Could not configure UserProfile via API (may be disabled or unnecessary): "
-                    + e.getMessage());
-        }
-    }
-
 }
