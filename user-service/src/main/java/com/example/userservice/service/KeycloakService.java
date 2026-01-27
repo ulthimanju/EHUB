@@ -122,12 +122,17 @@ public class KeycloakService {
 
     @jakarta.annotation.PostConstruct
     public void init() {
-        try {
-            updateUserProfileConfiguration();
-        } catch (Exception e) {
-            System.err.println("Failed to update Keycloak UserProfile configuration: " + e.getMessage());
-            // Continue, as Keycloak might not be ready or version might slightly differ
-        }
+        // Disabled to prevent side-effects on startup. Configuration should be handled
+        // by migration scripts.
+        /*
+         * try {
+         * updateUserProfileConfiguration();
+         * } catch (Exception e) {
+         * System.err.println("Failed to update Keycloak UserProfile configuration: " +
+         * e.getMessage());
+         * // Continue, as Keycloak might not be ready or version might slightly differ
+         * }
+         */
     }
 
     private void updateUserProfileConfiguration() {
