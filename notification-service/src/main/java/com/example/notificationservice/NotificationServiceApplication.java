@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
+@org.springframework.scheduling.annotation.EnableAsync
 @ComponentScan(basePackages = { "com.example.notificationservice", "com.example.common" })
 public class NotificationServiceApplication {
 

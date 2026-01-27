@@ -20,4 +20,6 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     List<TeamMember> findByUserId(String userId);
 
     Optional<TeamMember> findByTeamIdAndUserId(Long teamId, String userId);
+
+    long countByTeamIdAndStatus(Long teamId, com.example.eventservice.entity.TeamMemberStatus status);
 }

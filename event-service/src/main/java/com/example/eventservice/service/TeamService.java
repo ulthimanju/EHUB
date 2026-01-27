@@ -258,9 +258,7 @@ public class TeamService {
 
     private void checkTeamSize(Team team) {
         if (team.getHackathon().getMaxTeamSize() != null) {
-            long currentMembers = teamMemberRepository.findByTeamId(team.getId()).stream()
-                    .filter(m -> m.getStatus() == TeamMemberStatus.MEMBER)
-                    .count();
+            long currentMembers = teamMemberRepository.countByTeamIdAndStatus(team.getId(), TeamMemberStatus.MEMBER);
 
             if (currentMembers >= team.getHackathon().getMaxTeamSize()) {
                 throw new RuntimeException("Team has reached maximum size of " + team.getHackathon().getMaxTeamSize());

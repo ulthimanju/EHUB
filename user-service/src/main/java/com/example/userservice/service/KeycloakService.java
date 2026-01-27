@@ -30,8 +30,8 @@ public class KeycloakService {
         user.setEnabled(true);
         user.setUsername(userRegistrationDto.getUsername());
         user.setEmail(userRegistrationDto.getEmail());
-        user.setFirstName("EventUser"); // Placeholder to satisfy Keycloak requirements
-        user.setLastName("Member"); // Placeholder to satisfy Keycloak requirements
+        user.setFirstName(userRegistrationDto.getFirstName());
+        user.setLastName(userRegistrationDto.getLastName());
         user.setRequiredActions(java.util.Collections.emptyList()); // Ensure no required actions like UPDATE_PROFILE
         user.setEmailVerified(true); // Auto-verify email for now
 

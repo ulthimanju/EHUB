@@ -17,6 +17,7 @@ public class EmailService {
         this.javaMailSender = javaMailSender;
     }
 
+    @org.springframework.scheduling.annotation.Async
     public void sendEmail(String to, String subject, String body) {
         try {
             System.out.println("Attempting to send email to: " + to);

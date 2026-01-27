@@ -119,7 +119,15 @@ public class RegistrationService {
         try {
             keycloakService.assignRole(pending.getUsername(), AppConstants.ROLE_USER);
         } catch (Exception e) {
-            System.err.println("Warning: Could not assign 'USER' role in Keycloak: " + e.getMessage());
+            // COMPENSATING TRANSACTION: Rollback Keycloak user creation if role assignment
+            // fails
+            System.err.println("Failed to assign role. Rolling back Keycloak user: " + pending.getUsername());
+            try {
+                keycloakService.deleteUser(pending.getUsername());
+            } catch (Exception ke) {
+                System.err.println("CRITICAL: Failed to rollback Keycloak user: " + ke.getMessage());
+            }
+            throw new RuntimeException("Failed to assign default role to user", e);
         }
 
         // Create user in local DB
@@ -189,7 +197,15 @@ public class RegistrationService {
         try {
             keycloakService.assignRole(registrationDto.getUsername(), AppConstants.ROLE_USER);
         } catch (Exception e) {
-            System.err.println("Warning: Could not assign 'USER' role in Keycloak: " + e.getMessage());
+            // COMPENSATING TRANSACTION: Rollback Keycloak user creation if role assignment
+            // fails
+            System.err.println("Failed to assign role. Rolling back Keycloak user: " + registrationDto.getUsername());
+            try {
+                keycloakService.deleteUser(registrationDto.getUsername());
+            } catch (Exception ke) {
+                System.err.println("CRITICAL: Failed to rollback Keycloak user: " + ke.getMessage());
+            }
+            throw new RuntimeException("Failed to assign default role to user", e);
         }
 
         // Create user in local DB
