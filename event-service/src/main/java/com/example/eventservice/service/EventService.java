@@ -15,8 +15,29 @@ public class EventService {
     @Autowired
     private EventRepository eventRepository;
 
+    @Autowired
+    private org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
+
     public Event createEvent(Event event) {
-        return eventRepository.save(event);
+        Event savedEvent = eventRepository.save(event);
+
+        // Publish EventCreatedEvent
+        try {
+            com.example.common.event.EventCreatedEvent eventCreatedEvent = new com.example.common.event.EventCreatedEvent(
+                    savedEvent.getEventId(),
+                    savedEvent.getEventName(),
+                    savedEvent.getOrganizerUserId(),
+                    java.time.LocalDateTime.now());
+            rabbitTemplate.convertAndSend(
+                    com.example.eventservice.config.RabbitMQConfig.EXCHANGE_EVENT,
+                    com.example.eventservice.config.RabbitMQConfig.ROUTING_KEY_EVENT_CREATED,
+                    eventCreatedEvent);
+            System.out.println("Published EventCreatedEvent for event: " + savedEvent.getEventId());
+        } catch (Exception e) {
+            System.err.println("Failed to publish EventCreatedEvent: " + e.getMessage());
+        }
+
+        return savedEvent;
     }
 
     public List<Event> getAllEvents() {

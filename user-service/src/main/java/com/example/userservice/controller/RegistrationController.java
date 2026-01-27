@@ -18,7 +18,7 @@ import com.example.userservice.service.RegistrationService;
  * Separated from UserController for Single Responsibility Principle.
  */
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/users/auth")
 public class RegistrationController {
 
     private final RegistrationService registrationService;

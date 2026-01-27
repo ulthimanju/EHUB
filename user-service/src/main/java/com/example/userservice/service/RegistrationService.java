@@ -28,18 +28,21 @@ public class RegistrationService {
     private final KeycloakService keycloakService;
     private final OtpService otpService;
     private final NotificationClient notificationClient;
+    private final org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
 
     public RegistrationService(
             UserRepository userRepository,
             PendingRegistrationRepository pendingRegistrationRepository,
             KeycloakService keycloakService,
             OtpService otpService,
-            NotificationClient notificationClient) {
+            NotificationClient notificationClient,
+            org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate) {
         this.userRepository = userRepository;
         this.pendingRegistrationRepository = pendingRegistrationRepository;
         this.keycloakService = keycloakService;
         this.otpService = otpService;
         this.notificationClient = notificationClient;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     /**
@@ -83,10 +86,14 @@ public class RegistrationService {
         System.out.println("Registration OTP for " + registrationDto.getEmail() + ": " + otp);
 
         // Send OTP email using NotificationClient
-        notificationClient.sendRegistrationOtpEmail(
+        boolean emailSent = notificationClient.sendRegistrationOtpEmail(
                 registrationDto.getEmail(),
                 otp,
                 otpService.getExpiryMinutes());
+
+        if (!emailSent) {
+            throw new RuntimeException("Failed to send OTP email. Please try again later.");
+        }
     }
 
     /**
@@ -157,6 +164,24 @@ public class RegistrationService {
         pendingRegistrationRepository.delete(pending);
 
         System.out.println("Registration completed for: " + email);
+
+        // Publish UserRegisteredEvent
+        try {
+            com.example.common.event.UserRegisteredEvent event = new com.example.common.event.UserRegisteredEvent(
+                    String.valueOf(savedUser.getId()),
+                    savedUser.getEmail(),
+                    savedUser.getUsername(),
+                    java.time.LocalDateTime.now());
+            rabbitTemplate.convertAndSend(
+                    com.example.userservice.config.RabbitMQConfig.EXCHANGE_USER,
+                    com.example.userservice.config.RabbitMQConfig.ROUTING_KEY_USER_REGISTERED,
+                    event);
+            System.out.println("Published UserRegisteredEvent for " + savedUser.getUsername());
+        } catch (Exception e) {
+            System.err.println("Failed to publish UserRegisteredEvent: " + e.getMessage());
+            // Don't fail the registration if event publishing fails, just log it
+        }
+
         return mapToDTO(savedUser);
     }
 

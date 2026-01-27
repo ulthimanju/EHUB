@@ -31,6 +31,7 @@ public class NotificationClient {
      * @param body    Email body content
      * @return true if email was sent successfully, false otherwise
      */
+    @io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker(name = "notificationService", fallbackMethod = "sendEmailFallback")
     public boolean sendEmail(String to, String subject, String body) {
         try {
             Map<String, String> request = new HashMap<>();
@@ -44,9 +45,13 @@ public class NotificationClient {
             return true;
         } catch (Exception e) {
             System.err.println("Failed to send email to " + to + ": " + e.getMessage());
-            e.printStackTrace();
-            return false;
+            throw e; // Rethrow to trigger Circuit Breaker if needed, or let fallback handle it
         }
+    }
+
+    public boolean sendEmailFallback(String to, String subject, String body, Throwable t) {
+        System.err.println("Fallback: Failed to send email to " + to + ". Reason: " + t.getMessage());
+        return false;
     }
 
     /**
