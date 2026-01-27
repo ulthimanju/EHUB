@@ -18,6 +18,7 @@ public class EventService {
     @Autowired
     private org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
 
+    @org.springframework.cache.annotation.CacheEvict(value = { "events", "event" }, allEntries = true)
     public Event createEvent(Event event) {
         Event savedEvent = eventRepository.save(event);
 
@@ -40,15 +41,18 @@ public class EventService {
         return savedEvent;
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "events")
     public List<Event> getAllEvents() {
         return eventRepository.findAll();
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "event", key = "#id")
     public Optional<Event> getEventById(Long id) {
         return eventRepository.findById(id);
     }
 
     @org.springframework.transaction.annotation.Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = { "events", "event" }, allEntries = true)
     public Event updateEvent(Long id, Event eventDetails) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Event not found with id: " + id));
@@ -57,6 +61,7 @@ public class EventService {
     }
 
     @org.springframework.transaction.annotation.Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = { "events", "event" }, allEntries = true)
     public void deleteEvent(Long id) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Event not found with id: " + id));
