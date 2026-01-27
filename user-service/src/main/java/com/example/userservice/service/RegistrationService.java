@@ -73,6 +73,8 @@ public class RegistrationService {
         pending.setUsername(registrationDto.getUsername());
         pending.setEmail(registrationDto.getEmail());
         pending.setPassword(registrationDto.getPassword());
+        pending.setFirstName(registrationDto.getFirstName());
+        pending.setLastName(registrationDto.getLastName());
         pending.setOtp(otp);
         pending.setOtpExpiry(otpService.getExpiryTime());
         // createdAt is handled by @CreatedDate in BaseEntity via JPA Auditing
@@ -108,6 +110,8 @@ public class RegistrationService {
         registrationDto.setUsername(pending.getUsername());
         registrationDto.setEmail(pending.getEmail());
         registrationDto.setPassword(pending.getPassword());
+        registrationDto.setFirstName(pending.getFirstName());
+        registrationDto.setLastName(pending.getLastName());
 
         keycloakService.createUser(registrationDto);
 
@@ -122,6 +126,8 @@ public class RegistrationService {
         User user = new User();
         user.setUsername(pending.getUsername());
         user.setEmail(pending.getEmail());
+        user.setFirstName(pending.getFirstName());
+        user.setLastName(pending.getLastName());
         user.setRole(AppConstants.ROLE_USER);
 
         User savedUser;
@@ -190,6 +196,8 @@ public class RegistrationService {
         User user = new User();
         user.setUsername(registrationDto.getUsername());
         user.setEmail(registrationDto.getEmail());
+        user.setFirstName(registrationDto.getFirstName());
+        user.setLastName(registrationDto.getLastName());
         user.setRole(AppConstants.ROLE_USER);
 
         User savedUser = userRepository.save(user);

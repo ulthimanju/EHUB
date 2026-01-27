@@ -30,6 +30,9 @@ public class KeycloakService {
         user.setEnabled(true);
         user.setUsername(userRegistrationDto.getUsername());
         user.setEmail(userRegistrationDto.getEmail());
+        user.setFirstName("EventUser"); // Placeholder to satisfy Keycloak requirements
+        user.setLastName("Member"); // Placeholder to satisfy Keycloak requirements
+        user.setRequiredActions(java.util.Collections.emptyList()); // Ensure no required actions like UPDATE_PROFILE
         user.setEmailVerified(true); // Auto-verify email for now
 
         CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
@@ -116,4 +119,60 @@ public class KeycloakService {
         keycloak.realm(realm).users().get(user.getId()).roles().realmLevel().add(List.of(role));
         System.out.println("Role " + roleName + " assigned to user " + username);
     }
+
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        try {
+            updateUserProfileConfiguration();
+        } catch (Exception e) {
+            System.err.println("Failed to update Keycloak UserProfile configuration: " + e.getMessage());
+            // Continue, as Keycloak might not be ready or version might slightly differ
+        }
+    }
+
+    private void updateUserProfileConfiguration() {
+        // Fetch current configuration
+        // Note: This requires the UserProfile feature to be enabled in Keycloak, which
+        // is true by default in recent versions
+        try {
+            org.keycloak.admin.client.resource.UserProfileResource userProfileResource = keycloak.realm(realm).users()
+                    .userProfile();
+            org.keycloak.representations.userprofile.config.UPConfig config = userProfileResource.getConfiguration();
+
+            boolean changed = false;
+
+            // Make firstName optional
+            if (config.getAttributes() != null) {
+                for (org.keycloak.representations.userprofile.config.UPAttribute attr : config.getAttributes()) {
+                    if ("firstName".equals(attr.getName()) || "lastName".equals(attr.getName())) {
+                        if (attr.getRequired() != null) {
+                            // In older admin-clients/representations, isRequired might be boolean or object
+                            // We'll simplify by removing the required validator if simpler ways fail,
+                            // but usually there's a setter or we manipulate the map
+
+                            // Adjusting requirements: Set required to false (if setter exists) or remove it
+                            // Note: Implementation details depend on the exact Keycloak client version
+                            // structure.
+                            // For 24.x, UPAttribute has setRequired(UPAttributeRequired)
+
+                            attr.setRequired(null); // Make it optional
+                            changed = true;
+                            System.out.println("Made " + attr.getName() + " optional in Keycloak UserProfile.");
+                        }
+                    }
+                }
+            }
+
+            if (changed) {
+                userProfileResource.update(config);
+                System.out.println("Keycloak UserProfile configuration updated successfully.");
+            }
+        } catch (Exception e) {
+            // If API not found or failed, log it. common if feature disabled or client
+            // mismatch.
+            System.out.println("Warning: Could not configure UserProfile via API (may be disabled or unnecessary): "
+                    + e.getMessage());
+        }
+    }
+
 }

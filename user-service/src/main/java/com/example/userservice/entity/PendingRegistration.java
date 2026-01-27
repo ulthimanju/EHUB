@@ -42,6 +42,9 @@ public class PendingRegistration extends BaseEntity {
     @Column(nullable = false)
     private String password;
 
+    private String firstName;
+    private String lastName;
+
     private String otp;
     private Instant otpExpiry;
 
