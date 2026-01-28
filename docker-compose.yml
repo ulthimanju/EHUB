@@ -61,6 +61,30 @@ services:
     depends_on:
       - postgres
 
+  history-service:
+    build:
+      context: .
+      dockerfile: history-service/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/historydb
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_RABBITMQ_HOST: rabbitmq
+    ports:
+      - "9096:8084"
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: ai-service/Dockerfile
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    ports:
+      - "9097:8085"
+
   rabbitmq:
     image: rabbitmq:3-management
     ports:

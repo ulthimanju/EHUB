@@ -21,16 +21,16 @@ public class SubmissionService {
     private final SubmissionRepository submissionRepository;
     private final TeamRepository teamRepository;
     private final ProblemStatementRepository problemStatementRepository;
-    private final GeminiService geminiService;
+    private final AiClient aiClient;
     private final com.example.eventservice.repository.ScoreRepository scoreRepository;
 
     public SubmissionService(SubmissionRepository submissionRepository, TeamRepository teamRepository,
-            ProblemStatementRepository problemStatementRepository, GeminiService geminiService,
+            ProblemStatementRepository problemStatementRepository, AiClient aiClient,
             com.example.eventservice.repository.ScoreRepository scoreRepository) {
         this.submissionRepository = submissionRepository;
         this.teamRepository = teamRepository;
         this.problemStatementRepository = problemStatementRepository;
-        this.geminiService = geminiService;
+        this.aiClient = aiClient;
         this.scoreRepository = scoreRepository;
     }
 
@@ -43,8 +43,24 @@ public class SubmissionService {
             throw new RuntimeException("Submission does not have a problem statement");
         }
 
-        com.example.eventservice.entity.Score score = geminiService.evaluate(submission,
-                submission.getProblemStatement());
+        // Map to DTO
+        com.example.common.dto.EvaluationRequestDto request = new com.example.common.dto.EvaluationRequestDto(
+                submission.getProblemStatement().getTitle(),
+                submission.getProblemStatement().getDescription(),
+                submission.getRepoUrl(),
+                submission.getDemoUrl(),
+                submission.getDescription());
+
+        // Call AI Service
+        com.example.common.dto.EvaluationResponseDto response = aiClient.evaluate(request);
+
+        // Map back to Entity
+        com.example.eventservice.entity.Score score = new com.example.eventservice.entity.Score();
+        score.setScore(response.getScore());
+        score.setFeedback(response.getFeedback());
+        score.setJudgeId(response.getJudgeId());
+        score.setSubmission(submission);
+
         return scoreRepository.save(score);
     }
 
@@ -58,6 +74,15 @@ public class SubmissionService {
 
         if (!team.getLeaderUserId().equals(userId)) {
             throw new RuntimeException("Only team leader can submit the project");
+        }
+
+        // VALIDATION: Check Submission Window (Must be before Hackathon Ends)
+        if (team.getHackathon() instanceof com.example.eventservice.entity.Hackathon) {
+            com.example.eventservice.entity.Hackathon hackathon = (com.example.eventservice.entity.Hackathon) team
+                    .getHackathon();
+            if (hackathon.getEndDate() != null && java.time.Instant.now().isAfter(hackathon.getEndDate())) {
+                throw new RuntimeException("Submission deadline has passed. Event ended at: " + hackathon.getEndDate());
+            }
         }
 
         if (!isValidUrl(dto.getRepoUrl())) {

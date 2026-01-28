@@ -59,6 +59,11 @@ public class TeamService {
         // Generate unique team code
         String teamCode = generateTeamCode();
 
+        // VALIDATION: Check Registration Window
+        validateRegistrationWindow(hackathon);
+
+        // Create Team
+
         // Create Team
         Team team = new Team();
         team.setName(teamName);
@@ -145,6 +150,9 @@ public class TeamService {
 
         Team team = teamRepository.findByTeamCode(teamCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Team", "code", teamCode));
+
+        // VALIDATION: Check Registration Window
+        validateRegistrationWindow((Hackathon) team.getHackathon());
 
         Optional<TeamMember> existingMember = teamMemberRepository.findByTeamIdAndUserId(team.getId(), userId);
         if (existingMember.isPresent()) {
@@ -263,6 +271,17 @@ public class TeamService {
             if (currentMembers >= team.getHackathon().getMaxTeamSize()) {
                 throw new RuntimeException("Team has reached maximum size of " + team.getHackathon().getMaxTeamSize());
             }
+        }
+    }
+
+    private void validateRegistrationWindow(Hackathon hackathon) {
+        java.time.Instant now = java.time.Instant.now();
+        if (hackathon.getRegistrationStartDate() != null && now.isBefore(hackathon.getRegistrationStartDate())) {
+            throw new RuntimeException(
+                    "Registration has not started yet. Opens at: " + hackathon.getRegistrationStartDate());
+        }
+        if (hackathon.getRegistrationEndDate() != null && now.isAfter(hackathon.getRegistrationEndDate())) {
+            throw new RuntimeException("Registration has closed. Closed at: " + hackathon.getRegistrationEndDate());
         }
     }
 

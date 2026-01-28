@@ -23,3 +23,8 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+
+ai:
+  service:
+    url: ${AI_SERVICE_URL:http://ai-service:8085}

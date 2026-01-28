@@ -19,6 +19,12 @@ public class NotificationClient {
     @Value("${notification.service.url:http://notification-service:8080}")
     private String notificationServiceUrl;
 
+    private static final String API_PATH_EMAIL = "/notifications/email";
+    private static final String SUBJECT_REGISTRATION_OTP = "Email Verification OTP";
+    private static final String SUBJECT_PASSWORD_RESET_OTP = "Password Reset OTP";
+    private static final String SUBJECT_ROLE_UPGRADE_OTP = "Role Upgrade Verification OTP";
+    private static final int ROLE_UPGRADE_OTP_EXPIRY_MINUTES = 2;
+
     public NotificationClient() {
         this.restTemplate = new RestTemplate();
     }
@@ -39,7 +45,7 @@ public class NotificationClient {
             request.put("subject", subject);
             request.put("body", body);
 
-            String url = notificationServiceUrl + "/notifications/email";
+            String url = notificationServiceUrl + API_PATH_EMAIL;
             restTemplate.postForEntity(url, request, String.class);
             System.out.println("Email sent successfully to " + to);
             return true;
@@ -63,11 +69,10 @@ public class NotificationClient {
      * @return true if email was sent successfully
      */
     public boolean sendRegistrationOtpEmail(String email, String otp, int expiryMinutes) {
-        String subject = "Email Verification OTP";
         String body = String.format(
                 "Your OTP for registration is: %s\n\nThis code expires in %d minutes.",
                 otp, expiryMinutes);
-        return sendEmail(email, subject, body);
+        return sendEmail(email, SUBJECT_REGISTRATION_OTP, body);
     }
 
     /**
@@ -78,9 +83,8 @@ public class NotificationClient {
      * @return true if email was sent successfully
      */
     public boolean sendPasswordResetOtpEmail(String email, String otp) {
-        String subject = "Password Reset OTP";
         String body = "Your OTP for password reset is: " + otp;
-        return sendEmail(email, subject, body);
+        return sendEmail(email, SUBJECT_PASSWORD_RESET_OTP, body);
     }
 
     /**
@@ -92,10 +96,9 @@ public class NotificationClient {
      * @return true if email was sent successfully
      */
     public boolean sendRoleUpgradeOtpEmail(String email, String otp, String roleName) {
-        String subject = "Role Upgrade Verification OTP";
         String body = String.format(
-                "Your OTP to become a %s is: %s\n\nThis code expires in 2 minutes.",
-                roleName, otp);
-        return sendEmail(email, subject, body);
+                "Your OTP to become a %s is: %s\n\nThis code expires in %d minutes.",
+                roleName, otp, ROLE_UPGRADE_OTP_EXPIRY_MINUTES);
+        return sendEmail(email, SUBJECT_ROLE_UPGRADE_OTP, body);
     }
 }

@@ -18,13 +18,17 @@ public class UserClient {
     @Value("${user.service.url:http://user-service:8081}")
     private String userServiceUrl;
 
+    private static final String API_PATH_SEARCH_EMAIL = "/users/search?email=";
+    private static final String API_PATH_SEARCH_USERNAME = "/users/search?username=";
+
     public UserClient() {
         this.restTemplate = new RestTemplate();
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "users", key = "#email", unless = "#result == null")
     public UserSummaryDto getUserByEmail(String email) {
         try {
-            String url = userServiceUrl + "/users/search?email=" + email;
+            String url = userServiceUrl + API_PATH_SEARCH_EMAIL + email;
             ResponseEntity<ApiResponse<UserSummaryDto>> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
@@ -41,9 +45,10 @@ public class UserClient {
         return null;
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "users", key = "#username", unless = "#result == null")
     public UserSummaryDto getUserByUsername(String username) {
         try {
-            String url = userServiceUrl + "/users/search?username=" + username;
+            String url = userServiceUrl + API_PATH_SEARCH_USERNAME + username;
             ResponseEntity<ApiResponse<UserSummaryDto>> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,

@@ -20,6 +20,29 @@ public class EventService {
 
     @org.springframework.cache.annotation.CacheEvict(value = { "events", "event" }, allEntries = true)
     public Event createEvent(Event event) {
+        // Auto-set Hackathon specific fields (Registration & Judging)
+        if (event instanceof com.example.eventservice.entity.Hackathon) {
+            com.example.eventservice.entity.Hackathon hackathon = (com.example.eventservice.entity.Hackathon) event;
+            java.time.Instant start = hackathon.getStartDate();
+            java.time.Instant end = hackathon.getEndDate();
+
+            if (start != null) {
+                if (hackathon.getRegistrationStartDate() == null) {
+                    // Default: 24 hours before start
+                    hackathon.setRegistrationStartDate(start.minus(java.time.Duration.ofHours(24)));
+                }
+                if (hackathon.getRegistrationEndDate() == null) {
+                    // Default: 60 mins before start
+                    hackathon.setRegistrationEndDate(start.minus(java.time.Duration.ofMinutes(60)));
+                }
+            }
+
+            if (end != null && hackathon.getJudgingEndDate() == null) {
+                // Default: 6 hours after end
+                hackathon.setJudgingEndDate(end.plus(java.time.Duration.ofHours(6)));
+            }
+        }
+
         Event savedEvent = eventRepository.save(event);
 
         // Publish EventCreatedEvent

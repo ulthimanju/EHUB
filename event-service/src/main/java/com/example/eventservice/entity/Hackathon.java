@@ -39,6 +39,11 @@ public class Hackathon extends Event {
     private Integer minTeamSize;
     private Integer maxTeamSize;
 
+    // Registration & Judging Windows
+    private java.time.Instant registrationStartDate;
+    private java.time.Instant registrationEndDate;
+    private java.time.Instant judgingEndDate;
+
     /**
      * Technologies used in this hackathon.
      * Changed to Set for uniqueness and added BatchSize to reduce N+1 queries.
@@ -46,16 +51,6 @@ public class Hackathon extends Event {
     @ElementCollection(fetch = FetchType.LAZY)
     @BatchSize(size = 20)
     private Set<String> technologies = new HashSet<>();
-
-    /**
-     * Legacy teams list.
-     * 
-     * @deprecated Use participatingTeams instead.
-     */
-    @Deprecated
-    @ElementCollection(fetch = FetchType.LAZY)
-    @BatchSize(size = 20)
-    private Set<String> teams = new HashSet<>();
 
     @OneToMany(mappedBy = "hackathon", fetch = FetchType.LAZY)
     private List<Team> participatingTeams = new ArrayList<>();
@@ -68,4 +63,25 @@ public class Hackathon extends Event {
     @BatchSize(size = 10)
     @com.fasterxml.jackson.annotation.JsonManagedReference
     private List<ProblemStatement> problemStatements = new ArrayList<>();
+
+    @Override
+    public void updateFrom(Event other) {
+        super.updateFrom(other);
+        if (other instanceof Hackathon) {
+            Hackathon otherHackathon = (Hackathon) other;
+            this.theme = otherHackathon.getTheme();
+            this.duration = otherHackathon.getDuration();
+            this.prizePool = otherHackathon.getPrizePool();
+            this.minTeamSize = otherHackathon.getMinTeamSize();
+            this.maxTeamSize = otherHackathon.getMaxTeamSize();
+            this.registrationStartDate = otherHackathon.getRegistrationStartDate();
+            this.registrationEndDate = otherHackathon.getRegistrationEndDate();
+            this.judgingEndDate = otherHackathon.getJudgingEndDate();
+
+            // Note: Collections (technologies, problemStatements) are usually handled
+            // separately
+            // or need careful merging to avoid LazyInitializationException or orphans.
+            // For simple fields, this suffices.
+        }
+    }
 }

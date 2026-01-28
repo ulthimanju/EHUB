@@ -15,6 +15,8 @@ public class NotificationClient {
     @Value("${notification.service.url:http://notification-service:8080}")
     private String notificationServiceUrl;
 
+    private static final String API_PATH_EMAIL = "/notifications/email";
+
     public NotificationClient() {
         this.restTemplate = new RestTemplate();
     }
@@ -26,7 +28,7 @@ public class NotificationClient {
             request.put("subject", subject);
             request.put("body", body);
 
-            String url = notificationServiceUrl + "/notifications/email";
+            String url = notificationServiceUrl + API_PATH_EMAIL;
             restTemplate.postForEntity(url, request, String.class);
             System.out.println("Email sent successfully to " + to);
             return true;
@@ -37,6 +39,7 @@ public class NotificationClient {
         }
     }
 
+    @org.springframework.scheduling.annotation.Async
     public void sendTeamInvitation(String email, String teamName, String teamCode, String leaderName) {
         String subject = "Invitation to join team: " + teamName;
         String body = String.format("You have been invited by %s to join the team '%s'.\n\nUse this code to join: %s",
@@ -44,6 +47,7 @@ public class NotificationClient {
         sendEmail(email, subject, body);
     }
 
+    @org.springframework.scheduling.annotation.Async
     public void sendJoinRequestNotification(String leaderEmail, String requesterName, String teamName) {
         String subject = "New Join Request for team: " + teamName;
         String body = String.format(
@@ -52,6 +56,7 @@ public class NotificationClient {
         sendEmail(leaderEmail, subject, body);
     }
 
+    @org.springframework.scheduling.annotation.Async
     public void sendRequestStatusUpdate(String userEmail, String teamName, String status) {
         String subject = "Join Request " + status;
         String body = String.format("Your request to join team '%s' has been %s.", teamName, status);
