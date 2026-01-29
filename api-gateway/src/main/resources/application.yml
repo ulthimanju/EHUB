@@ -36,6 +36,10 @@ spring:
           uri: http://user-service:8080
           predicates:
             - Path=/users/**
+        - id: user-service-auth
+          uri: http://user-service:8080
+          predicates:
+            - Path=/auth/**
         - id: websocket
           uri: http://user-service:8080
           predicates:
