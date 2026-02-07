@@ -1,0 +1,153 @@
+version: '3.8'
+
+services:
+  auth-db:
+    image: postgres:15
+    container_name: ehub-auth-db
+    environment:
+      POSTGRES_DB: ehub_auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ehub-network
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-db:5432/ehub_auth_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      APPLICATION_SECURITY_JWT_SECRET_KEY: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+      APPLICATION_NOTIFICATION_SERVICE_URL: http://notification-service:8082/notifications/password-reset/validate
+      APPLICATION_COMMON_SERVICE_URL: http://common-services:8083/common
+    networks:
+      - ehub-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ehub-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - ehub-network
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      - redis
+    environment:
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      GMAIL_USERNAME: ${GMAIL_USERNAME}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
+      APP_ITEM_LIMIT: ${APP_ITEM_LIMIT}
+      APP_TIME_LIMIT: ${APP_TIME_LIMIT}
+    networks:
+      - ehub-network
+
+  common-services:
+    build:
+      context: ./common-services
+      dockerfile: Dockerfile
+    container_name: common-services
+    networks:
+      - ehub-network
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      - auth-service
+      - notification-service
+      - event-service
+    networks:
+      - ehub-network
+
+  event-db:
+    image: postgres:15
+    container_name: ehub-event-db
+    environment:
+      POSTGRES_DB: ehub_event_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ehub-network
+
+  event-service:
+    build:
+      context: ./event-service
+      dockerfile: Dockerfile
+    container_name: event-service
+    depends_on:
+      event-db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://event-db:5432/ehub_event_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      APPLICATION_COMMON_SERVICE_URL: http://common-services:8083/common
+      APPLICATION_NOTIFICATION_SERVICE_URL: http://notification-service:8082/notifications/send-alert
+    networks:
+      - ehub-network
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: ai-service
+    depends_on:
+      - event-service
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GOOGLE_API_KEY: ${GEMINI_API_KEY}
+      APPLICATION_EVENT_SERVICE_URL: http://event-service:8084
+    networks:
+      - ehub-network
+
+  web-client:
+    build:
+      context: ./web-client
+      dockerfile: Dockerfile
+    container_name: web-client
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    networks:
+      - ehub-network
+
+networks:
+  ehub-network:
+    driver: bridge

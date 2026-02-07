@@ -1,0 +1,36 @@
+classDiagram
+    class NotificationController {
+        -EmailService emailService
+        -OtpService otpService
+        +sendAlert(EmailRequest)
+        +sendPasswordResetOtp(OtpRequest)
+        +validateOtp(OtpValidationRequest)
+    }
+
+    class EmailService {
+        -JavaMailSender mailSender
+        -TemplateEngine templateEngine
+        +sendHtmlEmail(to, subject, template, vars)
+    }
+
+    class OtpService {
+        -StringRedisTemplate redisTemplate
+        -SecureRandom secureRandom
+        +generateOtp(email)
+        +validateOtp(email, otp)
+    }
+
+    class EmailRequest {
+        +String to
+        +String subject
+        +String message
+    }
+
+    class OtpRequest {
+        +String email
+    }
+
+    NotificationController --> EmailService
+    NotificationController --> OtpService
+    EmailService ..> EmailRequest
+    OtpService ..> OtpRequest

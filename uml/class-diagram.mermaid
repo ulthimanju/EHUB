@@ -1,0 +1,24 @@
+classDiagram
+    class User {
+        +String id
+        +String username
+        +String email
+        +String password
+        +boolean enabled
+    }
+
+    class UuidController {
+        -UuidService uuidService
+        +getUuid()
+    }
+
+    class UuidService {
+        +generateUuid()
+    }
+
+    AuthController --> AuthService
+    AuthService --> UserRepository
+    AuthService --> JwtService
+    AuthService ..> UuidController : "Internal Request"
+    UuidController --> UuidService
+    UserRepository ..> User

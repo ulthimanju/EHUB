@@ -1,0 +1,38 @@
+package com.ehub.event.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.util.List;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class TeamResponse {
+    private String id;
+    private String shortCode;
+    private String name;
+    private String eventId;
+    private String problemStatementId;
+    private String repoUrl;
+    private String demoUrl;
+    private java.time.LocalDateTime submissionTime;
+    private Double score;
+    private String leaderId;
+    private List<TeamMemberResponse> members;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TeamMemberResponse {
+        private String id;
+        private String userId;
+        private String username;
+        private String userEmail;
+        private String role; // LEADER, MEMBER
+        private String status; // INVITED, REQUESTED, ACCEPTED
+    }
+}

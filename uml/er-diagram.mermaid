@@ -1,0 +1,11 @@
+erDiagram
+    USERS {
+        bigint id PK
+        varchar username UK
+        varchar email UK
+        varchar password
+        boolean enabled
+    }
+
+    %% The authentication service is currently standalone, 
+    %% but future entities like ROLES could be added here.

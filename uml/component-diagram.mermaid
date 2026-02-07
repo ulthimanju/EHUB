@@ -1,0 +1,20 @@
+graph TB
+    subgraph EHub_System
+        AuthService[Auth Service]
+        NotificationService[Notification Service]
+        CommonServices[Common Services (Internal)]
+    end
+
+    subgraph External_Systems
+        PostgreSQL[(PostgreSQL)]
+        Redis[(Redis)]
+        Gmail[Gmail SMTP Server]
+    end
+
+    AuthService --> PostgreSQL
+    AuthService --> CommonServices
+    NotificationService --> Redis
+    NotificationService --> Gmail
+    
+    %% Potential future interaction
+    AuthService -.->|Trigger| NotificationService

@@ -1,0 +1,160 @@
+package com.ehub.auth.service;
+
+import com.ehub.auth.dto.*;
+import com.ehub.auth.entity.User;
+import com.ehub.auth.repository.UserRepository;
+import com.ehub.auth.security.JwtService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import com.ehub.auth.util.MessageKeys;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.beans.factory.annotation.Value;
+
+import java.util.ArrayList;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+public class AuthService {
+    private final UserRepository repository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final AuthenticationManager authenticationManager;
+    private final UserDetailsService userDetailsService;
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    @Value("${application.notification-service.url}")
+    private String notificationServiceUrl;
+
+    @Value("${application.common-service.url}")
+    private String commonServiceUrl;
+
+    public void requestRegistrationOtp(String email) {
+        if (repository.existsByEmail(email)) {
+            throw new RuntimeException(MessageKeys.USER_ALREADY_EXISTS.getMessage());
+        }
+        String otpUrl = notificationServiceUrl.replace("/validate", "/otp");
+        restTemplate.postForObject(otpUrl, Map.of("email", email), String.class);
+    }
+
+    public AuthenticationResponse register(RegisterRequest request) {
+        // 1. Validate OTP
+        Boolean isOtpValid = restTemplate.postForObject(
+                notificationServiceUrl,
+                Map.of("email", request.getEmail(), "otp", request.getOtp()),
+                Boolean.class
+        );
+
+        if (Boolean.FALSE.equals(isOtpValid)) {
+            throw new RuntimeException(MessageKeys.INVALID_OTP.getMessage());
+        }
+
+        if (repository.existsByUsername(request.getUsername()) || repository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException(MessageKeys.USER_ALREADY_EXISTS.getMessage());
+        }
+
+        // 2. Get UUID from Common Service
+        String uuid = restTemplate.getForObject(commonServiceUrl + "/uuid", String.class);
+
+        var user = User.builder()
+                .id(uuid)
+                .username(request.getUsername())
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .enabled(true)
+                .build();
+        repository.save(user);
+        UserDetails userDetails = new org.springframework.security.core.userdetails.User(user.getUsername(), user.getPassword(), new ArrayList<>());
+        var jwtToken = jwtService.generateToken(userDetails);
+        return AuthenticationResponse.builder()
+                .token(jwtToken)
+                .build();
+    }
+
+    public AuthenticationResponse login(LoginRequest request) {
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getUsername(),
+                        request.getPassword()
+                )
+        );
+        var user = repository.findByUsernameOrEmail(request.getUsername(), request.getUsername())
+                .orElseThrow();
+        UserDetails userDetails = new org.springframework.security.core.userdetails.User(user.getUsername(), user.getPassword(), new ArrayList<>());
+        var jwtToken = jwtService.generateToken(userDetails);
+        return AuthenticationResponse.builder()
+                .token(jwtToken)
+                .build();
+    }
+
+    public void resetPassword(PasswordResetRequest request) {
+        // 1. Validate OTP with Notification Service
+        Boolean isOtpValid = restTemplate.postForObject(
+                notificationServiceUrl,
+                Map.of("email", request.getEmail(), "otp", request.getOtp()),
+                Boolean.class
+        );
+
+        if (Boolean.FALSE.equals(isOtpValid)) {
+            throw new RuntimeException(MessageKeys.INVALID_OTP.getMessage());
+        }
+
+        // 2. Update Password
+        var user = repository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException(MessageKeys.USER_NOT_FOUND.getMessage()));
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        repository.save(user);
+    }
+
+    public void requestRoleUpgradeOtp(String email) {
+        var user = repository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException(MessageKeys.USER_NOT_FOUND.getMessage()));
+        
+        if ("organizer".equals(user.getRole())) {
+            throw new RuntimeException(MessageKeys.ROLE_ALREADY_ORGANIZER.getMessage());
+        }
+
+        String otpUrl = notificationServiceUrl.replace("/validate", "/otp");
+        restTemplate.postForObject(otpUrl, Map.of("email", email), String.class);
+    }
+
+    public void upgradeToOrganizer(RoleUpgradeRequest request) {
+        // 1. Validate OTP
+        Boolean isOtpValid = restTemplate.postForObject(
+                notificationServiceUrl,
+                Map.of("email", request.getEmail(), "otp", request.getOtp()),
+                Boolean.class
+        );
+
+        if (Boolean.FALSE.equals(isOtpValid)) {
+            throw new RuntimeException(MessageKeys.INVALID_OTP.getMessage());
+        }
+
+        // 2. Update Role
+        var user = repository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException(MessageKeys.USER_NOT_FOUND.getMessage()));
+        
+        user.setRole("organizer");
+        repository.save(user);
+    }
+
+    public User getProfile(String username) {
+        return repository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException(MessageKeys.USER_NOT_FOUND.getMessage()));
+    }
+
+    public boolean validateToken(String token) {
+        try {
+            String username = jwtService.extractUsername(token);
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            return jwtService.isTokenValid(token, userDetails);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}
