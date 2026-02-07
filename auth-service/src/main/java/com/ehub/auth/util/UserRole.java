@@ -1,14 +1,14 @@
-package com.ehub.event.util;
+package com.ehub.auth.util;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-public enum TeamRole {
-    LEADER("LEADER"),
-    MEMBER("MEMBER");
+public enum UserRole {
+    PARTICIPANT("participant"),
+    ORGANIZER("organizer");
 
     private final String value;
 
-    TeamRole(String value) {
+    UserRole(String value) {
         this.value = value;
     }
 

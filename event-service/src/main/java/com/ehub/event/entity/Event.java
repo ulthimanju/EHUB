@@ -1,5 +1,6 @@
 package com.ehub.event.entity;
 
+import com.ehub.event.util.EventStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.ArrayList;
@@ -52,6 +53,9 @@ public class Event {
     private Integer maxParticipants;
     private Integer teamSize;
 
+    @Enumerated(EnumType.STRING)
+    private EventStatus status;
+
     @Column(nullable = false)
     private String organizerId;
 
@@ -59,32 +63,32 @@ public class Event {
     @Builder.Default
     private List<ProblemStatement> problemStatements = new ArrayList<>();
 
-    public String getStatus() {
+    public EventStatus calculateCurrentStatus() {
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         
         // Before Registration
-        if (registrationStartDate != null && now.isBefore(registrationStartDate)) return "UPCOMING";
+        if (registrationStartDate != null && now.isBefore(registrationStartDate)) return EventStatus.UPCOMING;
         
         // During Registration
         if (registrationStartDate != null && registrationEndDate != null && 
-            !now.isBefore(registrationStartDate) && !now.isAfter(registrationEndDate)) return "REGISTRATION_OPEN";
+            !now.isBefore(registrationStartDate) && !now.isAfter(registrationEndDate)) return EventStatus.REGISTRATION_OPEN;
             
         // After Registration but before Event Start
-        if (startDate != null && now.isBefore(startDate)) return "UPCOMING";
+        if (startDate != null && now.isBefore(startDate)) return EventStatus.UPCOMING;
         
         // During Event
         if (startDate != null && endDate != null && 
-            !now.isBefore(startDate) && !now.isAfter(endDate)) return "ONGOING";
+            !now.isBefore(startDate) && !now.isAfter(endDate)) return EventStatus.ONGOING;
             
         // Judging Phase (Automatic if endDate passed and judging boolean is true)
-        if (endDate != null && now.isAfter(endDate) && Boolean.TRUE.equals(judging)) return "JUDGING";
+        if (endDate != null && now.isAfter(endDate) && Boolean.TRUE.equals(judging)) return EventStatus.JUDGING;
             
         // Results Announced (If judging is false but resultsDate hasn't passed or is exactly now)
         if (endDate != null && now.isAfter(endDate) && !Boolean.TRUE.equals(judging)) {
-            if (resultsDate != null && now.isAfter(resultsDate)) return "COMPLETED";
-            return "RESULTS_ANNOUNCED";
+            if (resultsDate != null && now.isAfter(resultsDate)) return EventStatus.COMPLETED;
+            return EventStatus.RESULTS_ANNOUNCED;
         }
             
-        return "UPCOMING";
+        return EventStatus.UPCOMING;
     }
 }

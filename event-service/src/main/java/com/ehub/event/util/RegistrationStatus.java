@@ -1,7 +1,20 @@
 package com.ehub.event.util;
 
+import com.fasterxml.jackson.annotation.JsonValue;
+
 public enum RegistrationStatus {
-    PENDING,
-    APPROVED,
-    REJECTED
+    PENDING("PENDING"),
+    APPROVED("APPROVED"),
+    REJECTED("REJECTED");
+
+    private final String value;
+
+    RegistrationStatus(String value) {
+        this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+        return value;
+    }
 }

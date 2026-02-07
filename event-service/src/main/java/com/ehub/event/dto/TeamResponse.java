@@ -1,5 +1,7 @@
 package com.ehub.event.dto;
 
+import com.ehub.event.util.TeamMemberStatus;
+import com.ehub.event.util.TeamRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -32,7 +34,7 @@ public class TeamResponse {
         private String userId;
         private String username;
         private String userEmail;
-        private String role; // LEADER, MEMBER
-        private String status; // INVITED, REQUESTED, ACCEPTED
+        private TeamRole role;
+        private TeamMemberStatus status;
     }
 }

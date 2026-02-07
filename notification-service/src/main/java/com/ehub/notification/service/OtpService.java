@@ -23,6 +23,7 @@ public class OtpService {
     private int timeLimitMinutes;
 
     public String generateOtp(String email) {
+        String otpKey = "OTP:" + email;
         String limitKey = "OTP_LIMIT:" + email;
         
         // 1. Increment and get the count atomically
@@ -38,9 +39,14 @@ public class OtpService {
             throw new RuntimeException(String.format(MessageKeys.RATE_LIMIT_EXCEEDED.getMessage(), timeLimitMinutes));
         }
 
-        // 4. Generate and store the actual OTP
-        String otp = String.format("%06d", secureRandom.nextInt(1000000));
-        redisTemplate.opsForValue().set("OTP:" + email, otp, 5, TimeUnit.MINUTES);
+        // 4. Check for existing OTP (Resend logic)
+        String otp = redisTemplate.opsForValue().get(otpKey);
+        if (otp == null) {
+            otp = String.format("%06d", secureRandom.nextInt(1000000));
+        }
+        
+        // 5. Store/Refresh with 10 minutes expiry
+        redisTemplate.opsForValue().set(otpKey, otp, 10, TimeUnit.MINUTES);
         
         return otp;
     }

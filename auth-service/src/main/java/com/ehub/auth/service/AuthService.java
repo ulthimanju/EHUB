@@ -9,10 +9,12 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import com.ehub.auth.client.CommonClient;
+import com.ehub.auth.client.NotificationClient;
+import com.ehub.auth.util.UserRole;
 import com.ehub.auth.util.MessageKeys;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.util.ArrayList;
@@ -26,31 +28,19 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
-    private final RestTemplate restTemplate = new RestTemplate();
-
-    @Value("${application.notification-service.url}")
-    private String notificationServiceUrl;
-
-    @Value("${application.common-service.url}")
-    private String commonServiceUrl;
+    private final NotificationClient notificationClient;
+    private final CommonClient commonClient;
 
     public void requestRegistrationOtp(String email) {
         if (repository.existsByEmail(email)) {
             throw new RuntimeException(MessageKeys.USER_ALREADY_EXISTS.getMessage());
         }
-        String otpUrl = notificationServiceUrl.replace("/validate", "/otp");
-        restTemplate.postForObject(otpUrl, Map.of("email", email), String.class);
+        notificationClient.sendOtp(email);
     }
 
     public AuthenticationResponse register(RegisterRequest request) {
         // 1. Validate OTP
-        Boolean isOtpValid = restTemplate.postForObject(
-                notificationServiceUrl,
-                Map.of("email", request.getEmail(), "otp", request.getOtp()),
-                Boolean.class
-        );
-
-        if (Boolean.FALSE.equals(isOtpValid)) {
+        if (!notificationClient.validateOtp(request.getEmail(), request.getOtp())) {
             throw new RuntimeException(MessageKeys.INVALID_OTP.getMessage());
         }
 
@@ -59,7 +49,7 @@ public class AuthService {
         }
 
         // 2. Get UUID from Common Service
-        String uuid = restTemplate.getForObject(commonServiceUrl + "/uuid", String.class);
+        String uuid = commonClient.getUuid();
 
         var user = User.builder()
                 .id(uuid)
@@ -67,6 +57,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .enabled(true)
+                .role(UserRole.PARTICIPANT)
                 .build();
         repository.save(user);
         UserDetails userDetails = new org.springframework.security.core.userdetails.User(user.getUsername(), user.getPassword(), new ArrayList<>());
@@ -93,14 +84,8 @@ public class AuthService {
     }
 
     public void resetPassword(PasswordResetRequest request) {
-        // 1. Validate OTP with Notification Service
-        Boolean isOtpValid = restTemplate.postForObject(
-                notificationServiceUrl,
-                Map.of("email", request.getEmail(), "otp", request.getOtp()),
-                Boolean.class
-        );
-
-        if (Boolean.FALSE.equals(isOtpValid)) {
+        // 1. Validate OTP
+        if (!notificationClient.validateOtp(request.getEmail(), request.getOtp())) {
             throw new RuntimeException(MessageKeys.INVALID_OTP.getMessage());
         }
 
@@ -115,23 +100,16 @@ public class AuthService {
         var user = repository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException(MessageKeys.USER_NOT_FOUND.getMessage()));
         
-        if ("organizer".equals(user.getRole())) {
+        if (UserRole.ORGANIZER.equals(user.getRole())) {
             throw new RuntimeException(MessageKeys.ROLE_ALREADY_ORGANIZER.getMessage());
         }
 
-        String otpUrl = notificationServiceUrl.replace("/validate", "/otp");
-        restTemplate.postForObject(otpUrl, Map.of("email", email), String.class);
+        notificationClient.sendOtp(email);
     }
 
     public void upgradeToOrganizer(RoleUpgradeRequest request) {
         // 1. Validate OTP
-        Boolean isOtpValid = restTemplate.postForObject(
-                notificationServiceUrl,
-                Map.of("email", request.getEmail(), "otp", request.getOtp()),
-                Boolean.class
-        );
-
-        if (Boolean.FALSE.equals(isOtpValid)) {
+        if (!notificationClient.validateOtp(request.getEmail(), request.getOtp())) {
             throw new RuntimeException(MessageKeys.INVALID_OTP.getMessage());
         }
 
@@ -139,8 +117,14 @@ public class AuthService {
         var user = repository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException(MessageKeys.USER_NOT_FOUND.getMessage()));
         
-        user.setRole("organizer");
+        user.setRole(UserRole.ORGANIZER);
         repository.save(user);
+    }
+
+    private void validateOtp(String email, String otp) {
+        if (!notificationClient.validateOtp(email, otp)) {
+            throw new RuntimeException(MessageKeys.INVALID_OTP.getMessage());
+        }
     }
 
     public User getProfile(String username) {

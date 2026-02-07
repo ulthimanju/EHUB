@@ -6,24 +6,24 @@ sequenceDiagram
     participant Redis as Redis
     participant Gmail as Gmail SMTP
 
-    Note over Client, Gmail: Password Reset OTP Flow
-    Client->>Controller: POST /password-reset/otp (Email)
+    Note over Client, Gmail: OTP Generation Flow
+    Client->>Controller: POST /notifications/otp (Email, Template)
     Controller->>OtpService: generateOtp(Email)
     OtpService->>Redis: GET OTP_LIMIT:{Email}
     alt Count < 5
-        OtpService->>Redis: SET OTP:{Email} (5 min exp)
-        OtpService->>Redis: INCR OTP_LIMIT:{Email} (30 min exp)
+        OtpService->>Redis: SET OTP:{Email} (10 min expiry)
+        OtpService->>Redis: INCR OTP_LIMIT:{Email} (30 min expiry)
         OtpService-->>Controller: 6-digit OTP
-        Controller->>EmailService: sendHtmlEmail(OTP Template)
+        Controller->>EmailService: sendHtmlEmail(Selected Template)
         EmailService->>Gmail: Send MimeMessage
         Controller-->>Client: 200 OK (OTP Sent)
     else Count >= 5
         OtpService-->>Controller: Rate Limit Exception
-        Controller-->>Client: 500 Internal Server Error (Limit Exceeded)
+        Controller-->>Client: 429 Too Many Requests
     end
 
-    Note over Client, Gmail: Alert Notification Flow
-    Client->>Controller: POST /send-alert (EmailRequest)
-    Controller->>EmailService: sendHtmlEmail(Alert Template)
+    Note over Client, Gmail: Template Alert Flow
+    Client->>Controller: POST /notifications/alert (Email, Template, Vars)
+    Controller->>EmailService: sendHtmlEmail(Template, Vars)
     EmailService->>Gmail: Send MimeMessage
     Controller-->>Client: 200 OK (Alert Sent)

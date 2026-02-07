@@ -1,14 +1,14 @@
-package com.ehub.event.util;
+package com.ehub.notification.util;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-public enum TeamRole {
-    LEADER("LEADER"),
-    MEMBER("MEMBER");
+public enum NotificationTemplate {
+    ALERT("alert-template"),
+    OTP("otp-template");
 
     private final String value;
 
-    TeamRole(String value) {
+    NotificationTemplate(String value) {
         this.value = value;
     }
 

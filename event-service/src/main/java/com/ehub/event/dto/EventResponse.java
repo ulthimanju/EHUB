@@ -1,5 +1,6 @@
 package com.ehub.event.dto;
 
+import com.ehub.event.util.EventStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -31,7 +32,7 @@ public class EventResponse {
     private String location;
     private Integer maxParticipants;
     private Integer teamSize;
-    private String status;
+    private EventStatus status;
     private String organizerId;
     private List<ProblemStatementResponse> problemStatements;
 

@@ -105,12 +105,12 @@ const EventDetails = () => {
     if (!window.confirm('Are you sure you want to finalize results? This will end the judging phase and announce final scores.')) return
     setFinalizing(true)
     try {
-      await api.patch(`/events/${eventId}/finalize-results`)
+      await api.patch(`/events/${eventId}/finalize-results?requesterId=${user.id || user.username}`)
       alert('Results finalized and announced!')
       const res = await api.get(`/events/${eventId}`)
       setEvent(res.data)
     } catch (err) {
-      alert('Failed to finalize results')
+      alert(err.response?.data || 'Failed to finalize results')
     } finally {
       setFinalizing(false)
     }
@@ -263,7 +263,7 @@ const EventDetails = () => {
 
   const handleInviteMember = async (teamId, targetUser) => {
     try {
-      await api.post(`/events/teams/${teamId}/invite`, {
+      await api.post(`/events/teams/${teamId}/invite?leaderId=${user.id || user.username}`, {
         userId: targetUser.userId, username: targetUser.username, userEmail: targetUser.userEmail
       })
       alert('Invitation sent!')
@@ -292,26 +292,26 @@ const EventDetails = () => {
 
   const handleStatusUpdate = async (registrationId, status) => {
     try {
-      await api.patch(`/events/registrations/${registrationId}/status?status=${status}`)
+      await api.patch(`/events/registrations/${registrationId}/status?status=${status}&requesterId=${user.id || user.username}`)
       setRegistrations(prev => prev.map(r => r.id === registrationId ? { ...r, status } : r))
-    } catch (err) { alert('Failed to update status') }
+    } catch (err) { alert(err.response?.data || 'Failed to update status') }
   }
 
   const handleDeleteProblem = async (problemId) => {
     if (!window.confirm('Delete this problem statement?')) return
     try {
-      await api.delete(`/events/problemstatements/${problemId}`)
+      await api.delete(`/events/problemstatements/${problemId}?requesterId=${user.id || user.username}`)
       const eventRes = await api.get(`/events/${eventId}`); setEvent(eventRes.data)
-    } catch (err) { alert('Failed to delete') }
+    } catch (err) { alert(err.response?.data || 'Failed to delete') }
   }
 
   const handleUpdateProblem = async (problemId) => {
     if (!editProblemValue.trim()) return
     try {
-      await api.put(`/events/problemstatements/${problemId}`, { statement: editProblemValue })
+      await api.put(`/events/problemstatements/${problemId}?requesterId=${user.id || user.username}`, { statement: editProblemValue })
       setEditingProblemId(null)
       const eventRes = await api.get(`/events/${eventId}`); setEvent(eventRes.data)
-    } catch (err) { alert('Failed to update') }
+    } catch (err) { alert(err.response?.data || 'Failed to update') }
   }
 
   if (loading) return (

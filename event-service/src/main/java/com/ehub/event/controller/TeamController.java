@@ -34,8 +34,11 @@ public class TeamController {
     }
 
     @PostMapping("/{teamId}/invite")
-    public ResponseEntity<String> inviteMember(@PathVariable String teamId, @RequestBody TeamInviteRequest request) {
-        teamService.inviteMember(teamId, request);
+    public ResponseEntity<String> inviteMember(
+            @PathVariable String teamId, 
+            @RequestParam String leaderId,
+            @RequestBody TeamInviteRequest request) {
+        teamService.inviteMember(teamId, request, leaderId);
         return ResponseEntity.ok(MessageKeys.TEAM_INVITE_SENT.getMessage());
     }
 

@@ -3,8 +3,17 @@ classDiagram
         -EmailService emailService
         -OtpService otpService
         +sendAlert(EmailRequest)
-        +sendPasswordResetOtp(OtpRequest)
+        +sendTemplateEmail(TemplateRequest)
         +validateOtp(OtpValidationRequest)
+    }
+
+    class NotificationTemplate {
+        <<enumeration>>
+        REGISTRATION_OTP
+        PASSWORD_RESET_OTP
+        ROLE_UPGRADE_OTP
+        EVENT_STATUS_UPDATE
+        TEAM_INVITATION
     }
 
     class EmailService {
@@ -26,11 +35,7 @@ classDiagram
         +String message
     }
 
-    class OtpRequest {
-        +String email
-    }
-
     NotificationController --> EmailService
     NotificationController --> OtpService
+    NotificationController ..> NotificationTemplate
     EmailService ..> EmailRequest
-    OtpService ..> OtpRequest

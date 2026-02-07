@@ -51,50 +51,54 @@ public class EventController {
     @PutMapping("/{id}")
     public ResponseEntity<String> updateEvent(
             @PathVariable String id,
+            @RequestParam String requesterId,
             @Valid @RequestBody EventRequest request) {
-        eventService.updateEvent(id, request);
+        eventService.updateEvent(id, request, requesterId);
         return ResponseEntity.ok("Event updated successfully");
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteEvent(@PathVariable String id) {
-        eventService.deleteEvent(id);
+    public ResponseEntity<String> deleteEvent(@PathVariable String id, @RequestParam String requesterId) {
+        eventService.deleteEvent(id, requesterId);
         return ResponseEntity.ok("Event deleted successfully");
     }
 
     @PostMapping("/{eventId}/problemstatements/bulk")
     public ResponseEntity<String> addProblemStatements(
             @PathVariable String eventId,
+            @RequestParam String requesterId,
             @Valid @RequestBody List<ProblemStatementRequest> requests) {
-        eventService.addProblemStatements(eventId, requests);
+        eventService.addProblemStatements(eventId, requests, requesterId);
         return ResponseEntity.ok(MessageKeys.PROBLEM_ADDED_SUCCESS.getMessage());
     }
 
     @PostMapping("/{eventId}/problemstatements")
     public ResponseEntity<String> addProblemStatement(
             @PathVariable String eventId,
+            @RequestParam String requesterId,
             @Valid @RequestBody ProblemStatementRequest request) {
-        eventService.addProblemStatement(eventId, request);
+        eventService.addProblemStatement(eventId, request, requesterId);
         return ResponseEntity.ok(MessageKeys.PROBLEM_ADDED_SUCCESS.getMessage());
     }
 
     @PutMapping("/problemstatements/{id}")
     public ResponseEntity<String> updateProblemStatement(
             @PathVariable String id,
+            @RequestParam String requesterId,
             @Valid @RequestBody ProblemStatementRequest request) {
-        eventService.updateProblemStatement(id, request);
+        eventService.updateProblemStatement(id, request, requesterId);
         return ResponseEntity.ok("Problem statement updated successfully");
     }
 
     @DeleteMapping("/problemstatements/{id}")
-    public ResponseEntity<String> deleteProblemStatement(@PathVariable String id) {
-        eventService.deleteProblemStatement(id);
+    public ResponseEntity<String> deleteProblemStatement(@PathVariable String id, @RequestParam String requesterId) {
+        eventService.deleteProblemStatement(id, requesterId);
         return ResponseEntity.ok("Problem statement deleted successfully");
     }
 
     @PatchMapping("/{id}/finalize-results")
-    public ResponseEntity<String> finalizeResults(@PathVariable String id) {
-        eventService.finalizeResults(id);
+    public ResponseEntity<String> finalizeResults(@PathVariable String id, @RequestParam String requesterId) {
+        eventService.finalizeResults(id, requesterId);
         return ResponseEntity.ok("Results finalized successfully");
     }
 
@@ -120,8 +124,9 @@ public class EventController {
     @PatchMapping("/registrations/{registrationId}/status")
     public ResponseEntity<String> updateRegistrationStatus(
             @PathVariable String registrationId,
+            @RequestParam String requesterId,
             @RequestParam RegistrationStatus status) {
-        eventService.updateRegistrationStatus(registrationId, status);
+        eventService.updateRegistrationStatus(registrationId, status, requesterId);
         String message = status == RegistrationStatus.APPROVED 
             ? MessageKeys.REGISTRATION_APPROVED.getMessage() 
             : MessageKeys.REGISTRATION_REJECTED.getMessage();

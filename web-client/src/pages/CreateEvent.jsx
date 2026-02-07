@@ -124,7 +124,7 @@ const CreateEvent = () => {
       }
 
       if (isEditMode) {
-        await api.put(`/events/${eventId}`, submitData)
+        await api.put(`/events/${eventId}?requesterId=${user.id || user.username}`, submitData)
         navigate(`/events/${eventId}`)
       } else {
         const response = await api.post('/events', submitData)

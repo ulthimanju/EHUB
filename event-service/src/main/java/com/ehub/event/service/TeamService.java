@@ -1,13 +1,26 @@
 package com.ehub.event.service;
 
+import com.ehub.event.client.CommonClient;
+import com.ehub.event.client.NotificationClient;
 import com.ehub.event.dto.*;
-import com.ehub.event.entity.*;
-import com.ehub.event.repository.*;
+import com.ehub.event.entity.Event;
+import com.ehub.event.entity.Registration;
+import com.ehub.event.entity.Team;
+import com.ehub.event.entity.TeamMember;
+import com.ehub.event.repository.EventRepository;
+import com.ehub.event.repository.ProblemStatementRepository;
+import com.ehub.event.repository.RegistrationRepository;
+import com.ehub.event.repository.TeamMemberRepository;
+import com.ehub.event.repository.TeamRepository;
+import com.ehub.event.util.EventStatus;
+import com.ehub.event.util.RegistrationStatus;
 import com.ehub.event.util.TeamMemberStatus;
 import com.ehub.event.util.TeamRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -15,18 +28,37 @@ import java.util.*;
 public class TeamService {
 
     private final TeamRepository teamRepository;
-    private final EventRepository eventRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final RegistrationRepository registrationRepository;
+    private final EventRepository eventRepository;
     private final ProblemStatementRepository problemStatementRepository;
+    private final CommonClient commonClient;
+    private final NotificationClient notificationClient;
 
     @Transactional
     public void createTeam(String eventId, TeamCreateRequest request) {
-        if (!eventRepository.existsById(eventId)) {
-            throw new RuntimeException("Event not found");
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("Event not found"));
+
+        // Constraint: Check if event has already started
+        if (event.getStartDate() != null && java.time.LocalDateTime.now().isAfter(event.getStartDate())) {
+            throw new RuntimeException("Teams cannot be formed once the event has started.");
+        }
+
+        // Constraint: User must have an APPROVED registration for this event
+        Registration registration = registrationRepository.findByEventIdAndUserId(eventId, request.getUserId())
+                .orElseThrow(() -> new RuntimeException("You must be registered for this event to create a team."));
+        if (registration.getStatus() != RegistrationStatus.APPROVED) {
+            throw new RuntimeException("Your registration for this event must be approved before you can create a team.");
+        }
+
+        // Constraint: User can only be in ONE team per event
+        if (teamMemberRepository.existsByTeamEventIdAndUserIdAndStatus(eventId, request.getUserId(), TeamMemberStatus.ACCEPTED)) {
+            throw new RuntimeException("You are already an accepted member of another team in this event.");
         }
 
         Team team = Team.builder()
-                .id(UUID.randomUUID().toString())
+                .id(commonClient.getUuid())
                 .name(request.getName())
                 .eventId(eventId)
                 .leaderId(request.getUserId())
@@ -37,7 +69,7 @@ public class TeamService {
         Team savedTeam = teamRepository.save(team);
 
         TeamMember leader = TeamMember.builder()
-                .id(UUID.randomUUID().toString())
+                .id(commonClient.getUuid())
                 .team(savedTeam)
                 .userId(request.getUserId())
                 .username(request.getUsername())
@@ -61,7 +93,7 @@ public class TeamService {
     }
 
     @Transactional
-    public void inviteMember(String teamId, TeamInviteRequest request) {
+    public void inviteMember(String teamId, TeamInviteRequest request, String requesterId) {
         if (teamMemberRepository.existsByTeamIdAndUserId(teamId, request.getUserId())) {
             throw new RuntimeException("User is already a member or has a pending association with this team");
         }
@@ -69,8 +101,37 @@ public class TeamService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new RuntimeException("Team not found"));
 
+        if (!team.getLeaderId().equals(requesterId)) {
+            throw new RuntimeException("Unauthorized: Only the team leader can invite members.");
+        }
+
+        // Constraint: Check team size limit
+        Event event = eventRepository.findById(team.getEventId())
+                .orElseThrow(() -> new RuntimeException("Event not found"));
+        
+        // Constraint: User must have an APPROVED registration for this event
+        Registration registration = registrationRepository.findByEventIdAndUserId(event.getId(), request.getUserId())
+                .orElseThrow(() -> new RuntimeException("The user must be registered for this event to be invited."));
+        if (registration.getStatus() != RegistrationStatus.APPROVED) {
+            throw new RuntimeException("The user's registration must be approved before they can be invited.");
+        }
+
+        // Constraint: User can only be in ONE team per event
+        if (teamMemberRepository.existsByTeamEventIdAndUserIdAndStatus(event.getId(), request.getUserId(), TeamMemberStatus.ACCEPTED)) {
+            throw new RuntimeException("This user is already an accepted member of another team in this event.");
+        }
+
+        if (event.getTeamSize() != null) {
+            long currentMembers = teamMemberRepository.findByTeamId(teamId).stream()
+                    .filter(m -> m.getStatus() == TeamMemberStatus.ACCEPTED || m.getStatus() == TeamMemberStatus.INVITED)
+                    .count();
+            if (currentMembers >= event.getTeamSize()) {
+                throw new RuntimeException("Team has reached its maximum size capacity.");
+            }
+        }
+
         TeamMember member = TeamMember.builder()
-                .id(UUID.randomUUID().toString())
+                .id(commonClient.getUuid())
                 .team(team)
                 .userId(request.getUserId())
                 .username(request.getUsername())
@@ -80,6 +141,11 @@ public class TeamService {
                 .build();
 
         teamMemberRepository.save(member);
+
+        // Send Notification
+        String subject = "Mission Invitation: Join " + team.getName();
+        String message = "You have been invited to join team " + team.getName() + " for the " + event.getName() + " hackathon. Log in to accept!";
+        notificationClient.sendEmail(request.getUserEmail(), subject, message);
     }
 
     @Transactional
@@ -91,8 +157,33 @@ public class TeamService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new RuntimeException("Team not found"));
 
+        // Constraint: Check team size limit
+        Event event = eventRepository.findById(team.getEventId())
+                .orElseThrow(() -> new RuntimeException("Event not found"));
+        
+        // Constraint: User must have an APPROVED registration for this event
+        Registration registration = registrationRepository.findByEventIdAndUserId(event.getId(), request.getUserId())
+                .orElseThrow(() -> new RuntimeException("You must be registered for this event to join a team."));
+        if (registration.getStatus() != RegistrationStatus.APPROVED) {
+            throw new RuntimeException("Your registration for this event must be approved before you can join a team.");
+        }
+
+        // Constraint: User can only be in ONE team per event
+        if (teamMemberRepository.existsByTeamEventIdAndUserIdAndStatus(event.getId(), request.getUserId(), TeamMemberStatus.ACCEPTED)) {
+            throw new RuntimeException("You are already an accepted member of another team in this event.");
+        }
+
+        if (event.getTeamSize() != null) {
+            long currentMembers = teamMemberRepository.findByTeamId(teamId).stream()
+                    .filter(m -> m.getStatus() == TeamMemberStatus.ACCEPTED)
+                    .count();
+            if (currentMembers >= event.getTeamSize()) {
+                throw new RuntimeException("This team is already full.");
+            }
+        }
+
         TeamMember member = TeamMember.builder()
-                .id(UUID.randomUUID().toString())
+                .id(commonClient.getUuid())
                 .team(team)
                 .userId(request.getUserId())
                 .username(request.getUsername())
@@ -110,6 +201,14 @@ public class TeamService {
                 .orElseThrow(() -> new RuntimeException("Membership not found"));
 
         if (accept) {
+            Team team = teamRepository.findById(teamId)
+                    .orElseThrow(() -> new RuntimeException("Team not found"));
+            
+            // Constraint: User can only be in ONE team per event
+            if (teamMemberRepository.existsByTeamEventIdAndUserIdAndStatus(team.getEventId(), userId, TeamMemberStatus.ACCEPTED)) {
+                throw new RuntimeException("You are already an accepted member of another team in this event.");
+            }
+
             member.setStatus(TeamMemberStatus.ACCEPTED);
             teamMemberRepository.save(member);
         } else {
@@ -186,6 +285,18 @@ public class TeamService {
             throw new RuntimeException("Only team leader can submit project");
         }
 
+        // Constraint: Check if event is ongoing
+        Event event = eventRepository.findById(team.getEventId())
+                .orElseThrow(() -> new RuntimeException("Event not found"));
+        
+        if (event.getStatus() != EventStatus.ONGOING) {
+            if (java.time.LocalDateTime.now().isBefore(event.getStartDate())) {
+                throw new RuntimeException("Submissions haven't opened yet. The event starts on " + event.getStartDate());
+            } else {
+                throw new RuntimeException("Submissions are closed. The event ended on " + event.getEndDate());
+            }
+        }
+
         team.setRepoUrl(request.getRepoUrl());
         team.setSubmissionTime(java.time.LocalDateTime.now());
         teamRepository.save(team);
@@ -194,37 +305,14 @@ public class TeamService {
     public Map<String, Object> getTeamForEvaluation(String teamId) {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new RuntimeException("Team not found"));
-        
-        Map<String, Object> map = new HashMap<>();
-        map.put("teamId", team.getId());
-        map.put("teamName", team.getName());
-        map.put("repoUrl", team.getRepoUrl());
-        
-        if (team.getProblemStatementId() != null) {
-            problemStatementRepository.findById(team.getProblemStatementId())
-                    .ifPresent(ps -> map.put("problemStatement", ps.getStatement()));
-        }
-        
-        return map;
+        return mapToEvaluationMap(team);
     }
 
     public List<Map<String, Object>> getEventEvaluationContext(String eventId) {
         List<Team> teams = teamRepository.findByEventId(eventId);
         return teams.stream()
                 .filter(t -> t.getRepoUrl() != null && !t.getRepoUrl().isBlank())
-                .map(t -> {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("teamId", t.getId());
-                    map.put("teamName", t.getName());
-                    map.put("repoUrl", t.getRepoUrl());
-                    
-                    if (t.getProblemStatementId() != null) {
-                        problemStatementRepository.findById(t.getProblemStatementId())
-                                .ifPresent(ps -> map.put("problemStatement", ps.getStatement()));
-                    }
-                    
-                    return map;
-                })
+                .map(this::mapToEvaluationMap)
                 .toList();
     }
 
@@ -240,17 +328,24 @@ public class TeamService {
         return UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
+    private Map<String, Object> mapToEvaluationMap(Team team) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("teamId", team.getId());
+        map.put("teamName", team.getName());
+        map.put("repoUrl", team.getRepoUrl());
+
+        if (team.getProblemStatementId() != null) {
+            problemStatementRepository.findById(team.getProblemStatementId())
+                    .ifPresent(ps -> map.put("problemStatement", ps.getStatement()));
+        }
+
+        return map;
+    }
+
     private TeamResponse mapToTeamResponse(Team team) {
         List<TeamResponse.TeamMemberResponse> memberDtos = teamMemberRepository.findByTeamId(team.getId())
                 .stream()
-                .map(m -> TeamResponse.TeamMemberResponse.builder()
-                        .id(m.getId())
-                        .userId(m.getUserId())
-                        .username(m.getUsername())
-                        .userEmail(m.getUserEmail())
-                        .role(m.getRole().name())
-                        .status(m.getStatus().name())
-                        .build())
+                .map(this::mapToTeamMemberResponse)
                 .toList();
 
         return TeamResponse.builder()
@@ -265,6 +360,17 @@ public class TeamService {
                 .leaderId(team.getLeaderId())
                 .score(team.getScore())
                 .members(memberDtos)
+                .build();
+    }
+
+    private TeamResponse.TeamMemberResponse mapToTeamMemberResponse(com.ehub.event.entity.TeamMember m) {
+        return TeamResponse.TeamMemberResponse.builder()
+                .id(m.getId())
+                .userId(m.getUserId())
+                .username(m.getUsername())
+                .userEmail(m.getUserEmail())
+                .role(m.getRole())
+                .status(m.getStatus())
                 .build();
     }
 }

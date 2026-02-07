@@ -1,5 +1,7 @@
 package com.ehub.event.service;
 
+import com.ehub.event.client.CommonClient;
+import com.ehub.event.client.NotificationClient;
 import com.ehub.event.dto.*;
 import com.ehub.event.entity.Event;
 import com.ehub.event.entity.ProblemStatement;
@@ -11,10 +13,8 @@ import com.ehub.event.util.MessageKeys;
 import com.ehub.event.util.RegistrationStatus;
 import com.ehub.event.util.ShortCodeGenerator;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -28,13 +28,8 @@ public class EventService {
     private final EventRepository eventRepository;
     private final ProblemStatementRepository problemRepository;
     private final RegistrationRepository registrationRepository;
-    private final RestTemplate restTemplate;
-
-    @Value("${APPLICATION_COMMON_SERVICE_URL}")
-    private String commonServiceUrl;
-
-    @Value("${application.notification-service.url}")
-    private String notificationServiceUrl;
+    private final CommonClient commonClient;
+    private final NotificationClient notificationClient;
 
     public List<EventResponse> getEventsByOrganizer(String organizerId) {
         return eventRepository.findByOrganizerId(organizerId).stream()
@@ -91,20 +86,24 @@ public class EventService {
                 .location(event.getLocation())
                 .maxParticipants(event.getMaxParticipants())
                 .teamSize(event.getTeamSize())
-                .status(event.getStatus())
+                .status(event.getStatus() != null ? event.getStatus() : event.calculateCurrentStatus())
                 .organizerId(event.getOrganizerId())
                 .problemStatements(event.getProblemStatements().stream()
-                        .map(ps -> EventResponse.ProblemStatementResponse.builder()
-                                .id(ps.getId())
-                                .statementId(ps.getStatementId())
-                                .statement(ps.getStatement())
-                                .build())
+                        .map(this::mapToProblemStatementResponse)
                         .collect(Collectors.toList()))
                 .build();
     }
 
+    private EventResponse.ProblemStatementResponse mapToProblemStatementResponse(com.ehub.event.entity.ProblemStatement ps) {
+        return EventResponse.ProblemStatementResponse.builder()
+                .id(ps.getId())
+                .statementId(ps.getStatementId())
+                .statement(ps.getStatement())
+                .build();
+    }
+
     public String createEvent(EventRequest request) {
-        String id = restTemplate.getForObject(commonServiceUrl + "/uuid", String.class);
+        String id = commonClient.getUuid();
         String shortCode = ShortCodeGenerator.generate(8);
         
         Event event = Event.builder()
@@ -130,14 +129,19 @@ public class EventService {
                 .organizerId(request.getOrganizerId())
                 .build();
         
+        event.setStatus(event.calculateCurrentStatus());
         eventRepository.save(event);
         return id;
     }
 
     @Transactional
-    public void updateEvent(String id, EventRequest request) {
+    public void updateEvent(String id, EventRequest request, String requesterId) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException(MessageKeys.EVENT_NOT_FOUND.getMessage()));
+
+        if (!event.getOrganizerId().equals(requesterId)) {
+            throw new RuntimeException("Unauthorized: Only the event creator can manage this mission.");
+        }
 
         event.setName(request.getName());
         event.setDescription(request.getDescription());
@@ -156,35 +160,50 @@ public class EventService {
         event.setLocation(request.getLocation());
         event.setMaxParticipants(request.getMaxParticipants());
         event.setTeamSize(request.getTeamSize());
+        event.setStatus(event.calculateCurrentStatus());
 
         eventRepository.save(event);
     }
 
     @Transactional
-    public void deleteEvent(String id) {
-        if (!eventRepository.existsById(id)) {
-            throw new RuntimeException(MessageKeys.EVENT_NOT_FOUND.getMessage());
+    public void deleteEvent(String id, String requesterId) {
+        Event event = eventRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException(MessageKeys.EVENT_NOT_FOUND.getMessage()));
+        
+        if (!event.getOrganizerId().equals(requesterId)) {
+            throw new RuntimeException("Unauthorized: Only the event creator can delete this mission.");
         }
+        
         eventRepository.deleteById(id);
     }
 
     @Transactional
-    public void finalizeResults(String id) {
+    public void finalizeResults(String id, String requesterId) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException(MessageKeys.EVENT_NOT_FOUND.getMessage()));
+        
+        if (!event.getOrganizerId().equals(requesterId)) {
+            throw new RuntimeException("Unauthorized: Only the event creator can finalize results.");
+        }
+
         event.setJudging(false);
+        event.setStatus(event.calculateCurrentStatus());
         eventRepository.save(event);
     }
 
     @Transactional
-    public void addProblemStatements(String eventId, List<ProblemStatementRequest> requests) {
+    public void addProblemStatements(String eventId, List<ProblemStatementRequest> requests, String requesterId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException(MessageKeys.EVENT_NOT_FOUND.getMessage()));
         
+        if (!event.getOrganizerId().equals(requesterId)) {
+            throw new RuntimeException("Unauthorized: Only the event creator can add challenges.");
+        }
+
         int currentCount = event.getProblemStatements().size();
         
         for (int i = 0; i < requests.size(); i++) {
-            String id = restTemplate.getForObject(commonServiceUrl + "/uuid", String.class);
+            String id = commonClient.getUuid();
             String autoStatementId = String.format("PS%03d", currentCount + i + 1);
             
             ProblemStatement problem = ProblemStatement.builder()
@@ -199,11 +218,15 @@ public class EventService {
     }
 
     @Transactional
-    public void addProblemStatement(String eventId, ProblemStatementRequest request) {
+    public void addProblemStatement(String eventId, ProblemStatementRequest request, String requesterId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException(MessageKeys.EVENT_NOT_FOUND.getMessage()));
         
-        String id = restTemplate.getForObject(commonServiceUrl + "/uuid", String.class);
+        if (!event.getOrganizerId().equals(requesterId)) {
+            throw new RuntimeException("Unauthorized: Only the event creator can add challenges.");
+        }
+
+        String id = commonClient.getUuid();
         String autoStatementId = String.format("PS%03d", event.getProblemStatements().size() + 1);
 
         ProblemStatement problem = ProblemStatement.builder()
@@ -217,15 +240,27 @@ public class EventService {
     }
 
     @Transactional
-    public void updateProblemStatement(String id, ProblemStatementRequest request) {
+    public void updateProblemStatement(String id, ProblemStatementRequest request, String requesterId) {
         ProblemStatement problem = problemRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Problem statement not found"));
+        
+        if (!problem.getEvent().getOrganizerId().equals(requesterId)) {
+            throw new RuntimeException("Unauthorized: Only the event creator can update challenges.");
+        }
+
         problem.setStatement(request.getStatement());
         problemRepository.save(problem);
     }
 
     @Transactional
-    public void deleteProblemStatement(String id) {
+    public void deleteProblemStatement(String id, String requesterId) {
+        ProblemStatement problem = problemRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Problem statement not found"));
+        
+        if (!problem.getEvent().getOrganizerId().equals(requesterId)) {
+            throw new RuntimeException("Unauthorized: Only the event creator can delete challenges.");
+        }
+
         problemRepository.deleteById(id);
     }
 
@@ -238,7 +273,22 @@ public class EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException(MessageKeys.EVENT_NOT_FOUND.getMessage()));
 
-        String id = restTemplate.getForObject(commonServiceUrl + "/uuid", String.class);
+        // Constraint: Check registration deadline
+        if (event.getRegistrationEndDate() != null && LocalDateTime.now().isAfter(event.getRegistrationEndDate())) {
+            throw new RuntimeException("Registration for this event has already closed.");
+        }
+
+        // Constraint: Check max participants capacity
+        if (event.getMaxParticipants() != null) {
+            long approvedCount = registrationRepository.findByEventId(eventId).stream()
+                    .filter(reg -> reg.getStatus() == RegistrationStatus.APPROVED)
+                    .count();
+            if (approvedCount >= event.getMaxParticipants()) {
+                throw new RuntimeException("Event capacity reached. No more participants can be approved.");
+            }
+        }
+
+        String id = commonClient.getUuid();
         
         Registration registration = Registration.builder()
                 .id(id)
@@ -254,12 +304,9 @@ public class EventService {
 
         // Send Notification to User about pending request
         try {
-            Map<String, String> emailRequest = new HashMap<>();
-            emailRequest.put("to", request.getUserEmail());
-            emailRequest.put("subject", "Registration Request Received: " + event.getName());
-            emailRequest.put("message", "Your registration request for " + event.getName() + " is pending approval from the organizer.");
-            
-            restTemplate.postForEntity(notificationServiceUrl, emailRequest, String.class);
+            String subject = "Registration Request Received: " + event.getName();
+            String message = "Your registration request for " + event.getName() + " is pending approval from the organizer.";
+            notificationClient.sendEmail(request.getUserEmail(), subject, message);
         } catch (Exception e) {
             // Log error but don't fail registration
             System.err.println("Failed to send registration notification: " + e.getMessage());
@@ -289,30 +336,28 @@ public class EventService {
     }
 
     @Transactional
-    public void updateRegistrationStatus(String registrationId, RegistrationStatus status) {
+    public void updateRegistrationStatus(String registrationId, RegistrationStatus status, String requesterId) {
         Registration registration = registrationRepository.findById(registrationId)
                 .orElseThrow(() -> new RuntimeException(MessageKeys.REGISTRATION_NOT_FOUND.getMessage()));
         
-        registration.setStatus(status);
-        registrationRepository.save(registration);
-
-        // Fetch event name for notification
         Event event = eventRepository.findById(registration.getEventId())
                 .orElseThrow(() -> new RuntimeException(MessageKeys.EVENT_NOT_FOUND.getMessage()));
 
+        if (!event.getOrganizerId().equals(requesterId)) {
+            throw new RuntimeException("Unauthorized: Only the event creator can manage registrations.");
+        }
+
+        registration.setStatus(status);
+        registrationRepository.save(registration);
+
         // Send Notification to User
         try {
-            Map<String, String> emailRequest = new HashMap<>();
-            emailRequest.put("to", registration.getUserEmail());
-            emailRequest.put("subject", "Registration " + status.name() + " for " + event.getName());
-            
+            String subject = "Registration " + status.name() + " for " + event.getName();
             String message = status == RegistrationStatus.APPROVED 
                 ? "Congratulations! Your registration for " + event.getName() + " has been APPROVED."
                 : "We regret to inform you that your registration for " + event.getName() + " has been REJECTED.";
             
-            emailRequest.put("message", message);
-            
-            restTemplate.postForEntity(notificationServiceUrl, emailRequest, String.class);
+            notificationClient.sendEmail(registration.getUserEmail(), subject, message);
         } catch (Exception e) {
             System.err.println("Failed to send status update notification: " + e.getMessage());
         }

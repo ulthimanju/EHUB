@@ -6,6 +6,7 @@ import com.ehub.notification.dto.OtpValidationRequest;
 import com.ehub.notification.service.EmailService;
 import com.ehub.notification.service.OtpService;
 import com.ehub.notification.util.MessageKeys;
+import com.ehub.notification.util.NotificationTemplate;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +27,7 @@ public class NotificationController {
     public ResponseEntity<String> sendAlert(@Valid @RequestBody EmailRequest request) {
         Map<String, Object> variables = new HashMap<>();
         variables.put("message", request.getMessage());
-        emailService.sendHtmlEmail(request.getTo(), request.getSubject(), "alert-template", variables);
+        emailService.sendHtmlEmail(request.getTo(), request.getSubject(), NotificationTemplate.ALERT.getValue(), variables);
         return ResponseEntity.ok(MessageKeys.ALERT_SENT_SUCCESS.getMessage());
     }
 
@@ -35,7 +36,7 @@ public class NotificationController {
         String otp = otpService.generateOtp(request.getEmail());
         Map<String, Object> variables = new HashMap<>();
         variables.put("otp", otp);
-        emailService.sendHtmlEmail(request.getEmail(), "Password Reset OTP", "otp-template", variables);
+        emailService.sendHtmlEmail(request.getEmail(), "Password Reset OTP", NotificationTemplate.OTP.getValue(), variables);
         return ResponseEntity.ok(MessageKeys.OTP_SENT_SUCCESS.getMessage());
     }
 
